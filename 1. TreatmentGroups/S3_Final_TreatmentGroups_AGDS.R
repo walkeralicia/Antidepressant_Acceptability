@@ -71,7 +71,7 @@ for (duration in durations) {
     filter(DXBPD2 == 1 & numPrescriptions > 3) %>%
     select(STUDYID, PrescriptionDays) %>%
     rename("ParticipantID" = "STUDYID") %>%
-    filter(ParticipantID %in% ad_ids)
+    filter(ParticipantID %in% groups$ParticipantID)
   
   #-- Format the BIP_lithium dataframe into the same as groups_noBIP
   BIP_lithium_sorted <- BIP_lithium %>%
@@ -94,7 +94,7 @@ for (duration in durations) {
   bip_ids <- BIP$STUDYID
   bip_wout_L_ids <- bip_ids[!bip_ids %in% BIP_lithium$ParticipantID] %>% 
     unique()
-  bip_wout_L_ids <- bip_wout_L_ids[bip_wout_L_ids %in% ad_ids]
+  bip_wout_L_ids <- bip_wout_L_ids[bip_wout_L_ids %in% groups$ParticipantID]
   bip_wout_L <- data.frame(ParticipantID = bip_wout_L_ids,
                            NumberOfTreatmentPeriods = NA,
                            AverageTreatmentPeriodDays = NA,
@@ -109,23 +109,7 @@ for (duration in durations) {
   
   
   #-- Final AD treatment group dataframe
-  all_groups <- rbind(groups_noBIP, BIP_lithium_sorted, bip_wout_L)
-  
-  #--- control group (those with PBS ad data but not in a treatment group)
-  ad_ids_not_in_groups <- ad_ids[!ad_ids %in% all_groups$ParticipantID] %>% unique()
-  controls <- data.frame(ParticipantID = ad_ids_not_in_groups,
-                         NumberOfTreatmentPeriods = NA,
-                         AverageTreatmentPeriodDays = NA,
-                         MaxTreatmentPeriodDays = NA,
-                         MinTreatmentPeriodDays = NA,
-                         EarliestPrescription = NA,
-                         LatestPrescription = NA,
-                         PrescriptionDays = NA,
-                         TreatmentGroup = "Various",
-                         TreatmentDrugs = "Miscellaneous",
-                         Combination_Class = NA)
-  #-- Combine all
-  final <- rbind(all_groups, controls)
+  final <- rbind(groups_noBIP, BIP_lithium_sorted, bip_wout_L)
   
   #-- Filter for participants with valid genetic data and of european ancestry
   final_link <- inner_join(link, final,by = "ParticipantID")

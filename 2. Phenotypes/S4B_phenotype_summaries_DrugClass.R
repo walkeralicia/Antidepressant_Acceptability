@@ -23,6 +23,9 @@ for (duration in durations){
     group_by(DrugClass) %>%
     summarise(
       group_size = n(),
+      perc_MDD = sum(MDD, na.rm = TRUE) / sum(!is.na(MDD)) * 100,
+      median_MDD_score = median(CUM_SYM, na.rm = TRUE),
+      sd_MDD_score = sd(CUM_SYM, na.rm = TRUE),
       mean_age = mean(AGE, na.rm = TRUE),
       sd_age = sd(AGE, na.rm = TRUE),
       perc_males = mean(SEX == 'Male', na.rm = TRUE) * 100,
@@ -57,9 +60,9 @@ for (duration in durations){
       mean_drink_3months = mean(DRK3FRQ, na.rm = TRUE),
       sd_drink_3months = sd(DRK3FRQ, na.rm = TRUE),
       perc_WELL = sum(WELLAD == 1, na.rm = TRUE) / sum(!is.na(WELLAD)) * 100,
-      perc_WELL_other = sum(WELLAD_other == 1, na.rm = TRUE) / sum(!is.na(WELLAD_other)) * 100,
+      perc_WELL_any = sum(WELLAD_any == 1, na.rm = TRUE) / sum(!is.na(WELLAD_any)) * 100,
       perc_STOP = sum(STOPAD == 1, na.rm = TRUE) / sum(!is.na(STOPAD)) * 100,
-      perc_STOP_other = sum(STOPAD_other == 1, na.rm = TRUE)/ sum(!is.na(STOPAD_other)) * 100
+      perc_STOP_any = sum(STOPAD_any == 1, na.rm = TRUE)/ sum(!is.na(STOPAD_any)) * 100
     )  %>%
     mutate(DrugClass = factor(DrugClass, levels = custom_order)) %>%
     arrange(DrugClass) %>%
@@ -73,7 +76,7 @@ for (duration in durations){
     group_by(DrugClass) %>%
     summarise(
       across(
-        c(TIMEWKS, CUM_SYM),
+        c(TIMEWKS),
         list(median = ~ median(.x, na.rm = TRUE)),
         .names = "{.col}_{.fn}"
       )
@@ -81,8 +84,8 @@ for (duration in durations){
     mutate(DrugClass = factor(DrugClass, levels = custom_order)) %>%
     arrange(DrugClass) %>%
     as.data.frame()  %>%
-    mutate_at(vars(-DrugClass, CUM_SYM_median), ~ round(., 1)) %>%
-    select(DrugClass, TIMEWKS_median, CUM_SYM_median)
+    mutate_at(vars(-DrugClass), ~ round(., 1)) %>%
+    select(DrugClass, TIMEWKS_median)
  
   #=== Prevalence of MDD DSM-5 symptoms ===
   table2b <- dat %>%
@@ -108,9 +111,8 @@ for (duration in durations){
     group_by(DrugClass) %>%
     summarise(
       across(
-        c(DXBPD2, DXPDMD, DXSCZ, DXANOR, DXBUL, DXADHD,
-          DXASD, DXSUD, DXPERSD, DXAGORA, DXANX, DXSAD, DXPHOB,
-          DXPTSD, DXHOARD, DXOCD, DXPANIC, DXTOUR),
+        c(DXBPD2, DXPDMD, DXSCZ, DXANOR, DXADHD,
+          DXSUD, DXPERSD, DXANX, DXSAD, DXOCD),
         ~ (sum(.x == 1, na.rm = TRUE) / sum(!is.na(.x)) * 100),
         .names = "{.col}"
       )
@@ -142,8 +144,8 @@ for (duration in durations){
   
   #=== table 2 ===
   table2ab <- full_join(table2a, table2b, by = "DrugClass")
-  table2abc <- full_join(table2ab, table2c, by = "DrugClass")
-  table2 <- full_join(table2abc, table2d, by = "DrugClass")
+  table2 <- full_join(table2ab, table2c, by = "DrugClass")
+  #table2 <- full_join(table2abc, table2d, by = "DrugClass")
   transformed_table2 = setNames(data.frame(t(table2[,-1])), table2[,1])
   
   #== Combine tables 1 and 2 ==
@@ -153,11 +155,13 @@ for (duration in durations){
   #== Write summaries ==
   if (duration == 360){
     wb <- loadWorkbook(file.path("/scratch/user/uqawal15", "All_Results.xlsx"))
+    removeWorksheet(wb, "Table5")
     addWorksheet(wb, "Table5")
     writeData(wb, "Table5", transformed_all, rowNames = TRUE)
     saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
   } else {
     wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
+    removeWorksheet(wb, "Table7")
     addWorksheet(wb, "Table7")
     writeData(wb, "Table7", transformed_all, rowNames = TRUE)
     saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)

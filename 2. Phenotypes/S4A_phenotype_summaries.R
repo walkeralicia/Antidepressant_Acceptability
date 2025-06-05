@@ -28,6 +28,9 @@ for (duration in durations){
     group_by(DrugName) %>%
     summarise(
       group_size = n(),
+      perc_MDD = sum(MDD, na.rm = TRUE) / sum(!is.na(MDD)) * 100,
+      median_MDD_score = median(CUM_SYM, na.rm = TRUE),
+      sd_MDD_score = sd(CUM_SYM, na.rm = TRUE),
       mean_age = mean(AGE, na.rm = TRUE),
       sd_age = sd(AGE, na.rm = TRUE),
       perc_males = mean(SEX == 'Male', na.rm = TRUE) * 100,
@@ -62,9 +65,9 @@ for (duration in durations){
       mean_drink_3months = mean(DRK3FRQ, na.rm = TRUE),
       sd_drink_3months = sd(DRK3FRQ, na.rm = TRUE),
       perc_WELL = sum(WELLAD == 1, na.rm = TRUE) / sum(!is.na(WELLAD)) * 100,
-      perc_WELL_other = sum(WELLAD_other == 1, na.rm = TRUE) / sum(!is.na(WELLAD_other)) * 100,
+      perc_WELL_any = sum(WELLAD_any == 1, na.rm = TRUE) / sum(!is.na(WELLAD_any)) * 100,
       perc_STOP = sum(STOPAD == 1, na.rm = TRUE) / sum(!is.na(STOPAD)) * 100,
-      perc_STOP_other = sum(STOPAD_other == 1, na.rm = TRUE)/ sum(!is.na(STOPAD_other)) * 100
+      perc_STOP_any = sum(STOPAD_any == 1, na.rm = TRUE)/ sum(!is.na(STOPAD_any)) * 100
     )  %>%
     mutate(DrugName = factor(DrugName, levels = custom_order)) %>%
     arrange(DrugName) %>%
@@ -78,7 +81,7 @@ for (duration in durations){
     group_by(DrugName) %>%
     summarise(
       across(
-        c(TIMEWKS, CUM_SYM),
+        c(TIMEWKS),
         list(median = ~ median(.x, na.rm = TRUE)),
         .names = "{.col}_{.fn}"
       )
@@ -86,8 +89,8 @@ for (duration in durations){
     mutate(DrugName = factor(DrugName, levels = custom_order)) %>%
     arrange(DrugName) %>%
     as.data.frame()  %>%
-    mutate_at(vars(-DrugName, CUM_SYM_median), ~ round(., 1)) %>%
-    select(DrugName, TIMEWKS_median, CUM_SYM_median)
+    mutate_at(vars(-DrugName), ~ round(., 1)) %>%
+    select(DrugName, TIMEWKS_median)
   
   #=== Prevalence of MDD DSM-5 symptoms ===
   table2b <- dat %>%
@@ -113,9 +116,8 @@ for (duration in durations){
     group_by(DrugName) %>%
     summarise(
       across(
-        c(DXBPD2, DXPDMD, DXSCZ, DXANOR, DXBUL, DXADHD,
-          DXASD, DXSUD, DXPERSD, DXAGORA, DXANX, DXSAD, DXPHOB,
-          DXPTSD, DXHOARD, DXOCD, DXPANIC, DXTOUR),
+        c(DXBPD2, DXPDMD, DXSCZ, DXANOR, DXADHD,
+          DXSUD, DXPERSD, DXANX, DXSAD, DXOCD),
         ~ (sum(.x == 1, na.rm = TRUE) / sum(!is.na(.x)) * 100),
         .names = "{.col}"
       )
@@ -147,8 +149,8 @@ for (duration in durations){
   
   #=== Table 2 ===
   table2ab <- full_join(table2a, table2b, by = "DrugName")
-  table2abc <- full_join(table2ab, table2c, by = "DrugName")
-  table2 <- full_join(table2abc, table2d, by = "DrugName")
+  table2 <- full_join(table2ab, table2c, by = "DrugName")
+  #table2 <- full_join(table2abc, table2d, by = "DrugName")
   transformed_table2 = setNames(data.frame(t(table2[,-1])), table2[,1])
   
   #== Combine Tables 1 and 2 ====
@@ -157,12 +159,14 @@ for (duration in durations){
   
   #=== Write summaries ===
   if (duration == 360){
-    wb <- createWorkbook()
+    wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
+    removeWorksheet(wb, "Table4")
     addWorksheet(wb, "Table4")
     writeData(wb, "Table4", transformed_all, rowNames = TRUE)
     saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
   } else {
     wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
+    removeWorksheet(wb, "Table6")
     addWorksheet(wb, "Table6")
     writeData(wb, "Table6", transformed_all, rowNames = TRUE)
     saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
@@ -171,7 +175,7 @@ for (duration in durations){
   #=== Proportions that Self-reported that the antidepressant works well for them ===
   well <- dat %>% 
     select(ParticipantID, WELLAD, DrugName) %>%
-    filter(DrugName != "BIP+L" & DrugName != "BIP" & DrugName != "Combination" & DrugName != "Various")
+    filter(DrugName != "BIP+L" & DrugName != "BIP-L" & DrugName != "Combination" & DrugName != "Various")
   
   well_modified <- well %>%
     mutate(across(-c(ParticipantID, DrugName), ~case_when(

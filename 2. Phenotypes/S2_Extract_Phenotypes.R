@@ -13,8 +13,11 @@ library(RColorBrewer)
 #== phenotypes
 wkdir="/QRISdata/Q7280/pharmacogenomics/"
 outdir="/scratch/user/uqawal15"
-pheno <- read.csv("/QRISdata/Q5338/Phenotypes/Combined_AGDS_2020_Freeze_20220620.csv") 
+pheno_raw <- read.csv("/QRISdata/Q5338/Phenotypes/Combined_AGDS_2020_Freeze_20220620.csv") 
 covariates <- read.csv(file.path(wkdir, "phenotypes/BMI_age_sex.csv"))
+
+invalid_entries <- pheno_raw[!grepl("^MDD", pheno_raw$STUDYID), ]
+pheno <- pheno_raw %>% filter(!STUDYID %in% invalid_entries$STUDYID)
 
 #== baseline and follow-up bip diagnosis
 followup_bip <- fread("/QRISdata/Q5338/Phenotypes/followUpData/dataforAlicia", fill = TRUE, header = TRUE) %>%
@@ -45,7 +48,15 @@ sym <- pheno %>% select(STUDYID, LOWINT2W, DEP2WK, APCHANGE, WTCHANGE, DIFFFALL,
     . == 2 ~ 1,
     TRUE ~ .
   ))) %>% 
-  mutate(CUM_SYM = rowSums(select(., -STUDYID), na.rm=TRUE))
+  mutate(CUM_SYM = rowSums(select(., -STUDYID), na.rm=FALSE)) %>%
+  mutate(MDD = case_when(
+    (is.na(LOWINT2W) & is.na(DEP2WK)) | is.na(CUM_SYM) ~ NA_real_,
+    (LOWINT2W == 1 | DEP2WK == 1) & CUM_SYM >= 5 ~ 1,
+    TRUE ~ 0)
+  )
+
+#-- Percentage of the cohort with Lifetime MDD
+perc_MDD <- sum(sym$MDD, na.rm = TRUE) / sum(!is.na(sym$MDD)) * 100
 
 #=== Weight change ===
 wtchange <- pheno %>% select(STUDYID, WTCHANGE, WTKILO) %>%
@@ -199,10 +210,6 @@ cov <- covariates %>% select(STUDYID, AGE, SEX, BMI)
 datasets_to_join <- list(cov, dep, sym, com, wtchange, pre, sui, fam , edu, drugs, med, head, fem, well, sideeffs)
 tab <- Reduce(function(x, y) full_join(x, y, by = "STUDYID"), datasets_to_join)
 write.csv(tab, file.path(wkdir, "phenotypes/survey_phenotypes.csv"), row.names = FALSE)
-
-#-- save results
-write.csv(tab, "/QRISdata/Q7280/pharmacogenomics/phenotypes/survey_phenotypes.csv", row.names = FALSE)
-
 
 
 ######## Proportion of self-responders plot ################

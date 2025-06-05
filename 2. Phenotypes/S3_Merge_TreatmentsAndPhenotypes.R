@@ -7,6 +7,9 @@ library(tidyr)
 #-- set wkdir
 wkdir="/QRISdata/Q7280/pharmacogenomics/"
 
+#-- Set treatment duration
+duration = 360
+
 #-- Read in phenotypes
 pheno <- read.csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv"))
 
@@ -46,9 +49,7 @@ create_treatment_columns <- function(data, prefix) {
 
 
 #-- Load treatment data
-duration = 360
-#duration = 600
-ad <- read.csv("/scratch/user/uqawal15/Final_Treatmentgroups_360days.csv")
+ad <- read.csv(file.path(wkdir, paste0("treatment_groups/Final_Treatmentgroups_", duration, "days.csv")))
 
 #=== Left merge treatment groups with phenotypes for summaries and analyses ===
 inner <- left_join(ad, pheno, by = c("ParticipantID" = "STUDYID")) %>%
@@ -76,50 +77,62 @@ inner <- left_join(ad, pheno, by = c("ParticipantID" = "STUDYID")) %>%
       DrugName == "TCA:Mirtazapine" & Mirtazapine == 0 ~ 0,
       TRUE ~ NA_real_
     ),
-    WELLAD_other = case_when(
-      DrugName == "SSRI:Sertraline" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SSRI:Sertraline" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SSRI:Escitalopram" & (Sertraline == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SSRI:Escitalopram" & (Sertraline != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SSRI:Citalopram" & (Escitalopram == 1 | Sertraline == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SSRI:Citalopram" & (Escitalopram != 1 & Sertraline != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SSRI:Fluoxetine" & (Escitalopram == 1 | Citalopram == 1 | Sertraline == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SSRI:Fluoxetine" & (Escitalopram != 1 & Citalopram != 1 & Sertraline != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SSRI:Paroxetine" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Sertraline == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SSRI:Paroxetine" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Sertraline != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SNRI:Desvenlafaxine" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Sertraline == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SNRI:Desvenlafaxine" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Sertraline != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SNRI:Venlafaxine" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Sertraline == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SNRI:Venlafaxine" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Sertraline != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SNRI:Duloxetine" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Sertraline == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SNRI:Duloxetine" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Sertraline != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "TCA:Amitriptyline" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Sertraline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "TCA:Amitriptyline" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Sertraline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "TCA:Mirtazapine" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Sertraline == 1) ~ 1,
-      DrugName == "TCA:Mirtazapine" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Sertraline != 1) ~ 0,
+    WELLAD_any= case_when(
+      DrugName == "SSRI:Sertraline" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SSRI:Sertraline" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SSRI:Escitalopram" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SSRI:Escitalopram" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SSRI:Citalopram" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SSRI:Citalopram" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SSRI:Fluoxetine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SSRI:Fluoxetine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SSRI:Paroxetine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SSRI:Paroxetine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SNRI:Desvenlafaxine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SNRI:Desvenlafaxine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SNRI:Venlafaxine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SNRI:Venlafaxine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SNRI:Duloxetine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SNRI:Duloxetine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "TCA:Amitriptyline" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "TCA:Amitriptyline" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "TCA:Mirtazapine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "TCA:Mirtazapine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "BIP-L" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "BIP-L" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "BIP+L" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "BIP+L" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "Various" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "Various" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
       TRUE ~ NA_real_
     ),
-    STOPAD_other = case_when(
-      DrugName == "SSRI:Sertraline" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SSRI:Sertraline" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SSRI:Escitalopram" & (STOPSERT == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SSRI:Escitalopram" & (STOPSERT != 1 & STOPCITA != 1 & STOPFLUO!= 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SSRI:Citalopram" & (STOPESCI == 1 | STOPSERT == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SSRI:Citalopram" & (STOPESCI != 1 & STOPSERT != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SSRI:Fluoxetine" & (STOPESCI == 1 | STOPCITA == 1 | STOPSERT == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SSRI:Fluoxetine" & (STOPESCI != 1 & STOPCITA != 1 & STOPSERT != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SSRI:Paroxetine" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPSERT == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SSRI:Paroxetine" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPSERT != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SNRI:Desvenlafaxine" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPSERT == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SNRI:Desvenlafaxine" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPSERT != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SNRI:Venlafaxine" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPSERT == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SNRI:Venlafaxine" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPSERT != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SNRI:Duloxetine" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPSERT == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SNRI:Duloxetine" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPSERT != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "TCA:Amitriptyline" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPSERT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "TCA:Amitriptyline" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPSERT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "TCA:Mirtazapine" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPSERT == 1) ~ 1,
-      DrugName == "TCA:Mirtazapine" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPSERT != 1) ~ 0,
+    STOPAD_any = case_when(
+      DrugName == "SSRI:Sertraline" & (STOPSERT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SSRI:Sertraline" & (STOPSERT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SSRI:Escitalopram" & (STOPESCI == 1 | STOPSERT == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SSRI:Escitalopram" & (STOPESCI != 1 & STOPSERT != 1 & STOPCITA != 1 & STOPFLUO!= 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SSRI:Citalopram" & (STOPCITA == 1 |  STOPESCI == 1 | STOPSERT == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SSRI:Citalopram" & (STOPCITA != 1 & STOPESCI != 1 & STOPSERT != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SSRI:Fluoxetine" & (STOPFLUO == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPSERT == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SSRI:Fluoxetine" & (STOPFLUO != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPSERT != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SSRI:Paroxetine" & (STOPPARO == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPSERT == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SSRI:Paroxetine" & (STOPPARO != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPSERT != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SNRI:Desvenlafaxine" & (STOPDESV == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPSERT == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SNRI:Desvenlafaxine" & (STOPDESV != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPSERT != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SNRI:Venlafaxine" & (STOPVENL == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPSERT == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SNRI:Venlafaxine" & (STOPVENL != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPSERT != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SNRI:Duloxetine" & (STOPDULO == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPSERT == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SNRI:Duloxetine" & (STOPDULO != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPSERT != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "TCA:Amitriptyline" & (STOPAMIT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPSERT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "TCA:Amitriptyline" & (STOPAMIT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPSERT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "TCA:Mirtazapine" & (STOPMIRT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPSERT == 1) ~ 1,
+      DrugName == "TCA:Mirtazapine" & (STOPMIRT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPSERT != 1) ~ 0,
+      DrugName == "BIP-L" & (STOPSERT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "BIP-L" & (STOPSERT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "BIP+L" & (STOPSERT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "BIP+L" & (STOPSERT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "Various" & (STOPSERT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "Various" & (STOPSERT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
       TRUE ~ NA_real_
     )
   )
@@ -151,7 +164,7 @@ inner <- inner %>%
   create_treatment_columns("NOSE") %>%
   create_treatment_columns("STOP")
 
-write.csv(inner, paste0("/scratch/user/uqawal15/inner_data_", duration, "days.csv"), row.names = FALSE)
+write.csv(inner, paste0("/QRISdata/Q7280/pharmacogenomics/phenotypes/treatment_phenotypes/inner_data_", duration, "days.csv"), row.names = FALSE)
 
 
 #=== Full merge treatment groups with phenotypes for some analyses ===
@@ -181,50 +194,62 @@ full <- full_join(ad, pheno, by = c("ParticipantID" = "STUDYID")) %>%
       DrugName == "TeCA:Mirtazapine" & Mirtazapine == 0 ~ 0,
       TRUE ~ NA_real_
     ),
-    WELLAD_other = case_when(
-      DrugName == "SSRI:Sertraline" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SSRI:Sertraline" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SSRI:Escitalopram" & (Sertraline == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SSRI:Escitalopram" & (Sertraline != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SSRI:Citalopram" & (Escitalopram == 1 | Sertraline == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SSRI:Citalopram" & (Escitalopram != 1 & Sertraline != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SSRI:Fluoxetine" & (Escitalopram == 1 | Citalopram == 1 | Sertraline == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SSRI:Fluoxetine" & (Escitalopram != 1 & Citalopram != 1 & Sertraline != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SSRI:Paroxetine" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Sertraline == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SSRI:Paroxetine" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Sertraline != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SNRI:Desvenlafaxine" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Sertraline == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SNRI:Desvenlafaxine" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Sertraline != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SNRI:Venlafaxine" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Sertraline == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SNRI:Venlafaxine" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Sertraline != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "SNRI:Duloxetine" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Sertraline == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "SNRI:Duloxetine" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Sertraline != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "TCA:Amitriptyline" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Sertraline == 1 | Mirtazapine == 1) ~ 1,
-      DrugName == "TCA:Amitriptyline" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Sertraline != 1 & Mirtazapine != 1) ~ 0,
-      DrugName == "TCA:Mirtazapine" & (Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Sertraline == 1) ~ 1,
-      DrugName == "TCA:Mirtazapine" & (Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Sertraline != 1) ~ 0,
+    WELLAD_any= case_when(
+      DrugName == "SSRI:Sertraline" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SSRI:Sertraline" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SSRI:Escitalopram" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SSRI:Escitalopram" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SSRI:Citalopram" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SSRI:Citalopram" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SSRI:Fluoxetine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SSRI:Fluoxetine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SSRI:Paroxetine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SSRI:Paroxetine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SNRI:Desvenlafaxine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SNRI:Desvenlafaxine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SNRI:Venlafaxine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SNRI:Venlafaxine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "SNRI:Duloxetine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "SNRI:Duloxetine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "TCA:Amitriptyline" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "TCA:Amitriptyline" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "TCA:Mirtazapine" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "TCA:Mirtazapine" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "BIP-L" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "BIP-L" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "BIP+L" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "BIP+L" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
+      DrugName == "Various" & (Sertraline == 1 | Escitalopram == 1 | Citalopram == 1 | Fluoxetine == 1 | Paroxetine == 1 | Desvenlafaxine == 1 | Venlafaxine == 1 | Duloxetine == 1 | Amitriptyline == 1 | Mirtazapine == 1) ~ 1,
+      DrugName == "Various" & (Sertraline != 1 & Escitalopram != 1 & Citalopram != 1 & Fluoxetine != 1 & Paroxetine != 1 & Desvenlafaxine != 1 & Venlafaxine != 1 & Duloxetine != 1 & Amitriptyline != 1 & Mirtazapine != 1) ~ 0,
       TRUE ~ NA_real_
     ),
-    STOPAD_other = case_when(
-      DrugName == "SSRI:Sertraline" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SSRI:Sertraline" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SSRI:Escitalopram" & (STOPSERT == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SSRI:Escitalopram" & (STOPSERT != 1 & STOPCITA != 1 & STOPFLUO!= 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SSRI:Citalopram" & (STOPESCI == 1 | STOPSERT == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SSRI:Citalopram" & (STOPESCI != 1 & STOPSERT != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SSRI:Fluoxetine" & (STOPESCI == 1 | STOPCITA == 1 | STOPSERT == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SSRI:Fluoxetine" & (STOPESCI != 1 & STOPCITA != 1 & STOPSERT != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SSRI:Paroxetine" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPSERT == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SSRI:Paroxetine" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPSERT != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SNRI:Desvenlafaxine" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPSERT == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SNRI:Desvenlafaxine" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPSERT != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SNRI:Venlafaxine" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPSERT == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SNRI:Venlafaxine" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPSERT != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "SNRI:Duloxetine" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPSERT == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "SNRI:Duloxetine" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPSERT != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "TCA:Amitriptyline" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPSERT == 1 | STOPMIRT == 1) ~ 1,
-      DrugName == "TCA:Amitriptyline" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPSERT != 1 & STOPMIRT != 1) ~ 0,
-      DrugName == "TCA:Mirtazapine" & (STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPSERT == 1) ~ 1,
-      DrugName == "TCA:Mirtazapine" & (STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPSERT != 1) ~ 0,
+    STOPAD_any = case_when(
+      DrugName == "SSRI:Sertraline" & (STOPSERT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SSRI:Sertraline" & (STOPSERT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SSRI:Escitalopram" & (STOPESCI == 1 | STOPSERT == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SSRI:Escitalopram" & (STOPESCI != 1 & STOPSERT != 1 & STOPCITA != 1 & STOPFLUO!= 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SSRI:Citalopram" & (STOPCITA == 1 |  STOPESCI == 1 | STOPSERT == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SSRI:Citalopram" & (STOPCITA != 1 & STOPESCI != 1 & STOPSERT != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SSRI:Fluoxetine" & (STOPFLUO == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPSERT == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SSRI:Fluoxetine" & (STOPFLUO != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPSERT != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SSRI:Paroxetine" & (STOPPARO == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPSERT == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SSRI:Paroxetine" & (STOPPARO != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPSERT != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SNRI:Desvenlafaxine" & (STOPDESV == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPSERT == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SNRI:Desvenlafaxine" & (STOPDESV != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPSERT != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SNRI:Venlafaxine" & (STOPVENL == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPSERT == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SNRI:Venlafaxine" & (STOPVENL != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPSERT != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "SNRI:Duloxetine" & (STOPDULO == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPSERT == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "SNRI:Duloxetine" & (STOPDULO != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPSERT != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "TCA:Amitriptyline" & (STOPAMIT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPSERT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "TCA:Amitriptyline" & (STOPAMIT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPSERT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "TCA:Mirtazapine" & (STOPMIRT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPSERT == 1) ~ 1,
+      DrugName == "TCA:Mirtazapine" & (STOPMIRT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPSERT != 1) ~ 0,
+      DrugName == "BIP-L" & (STOPSERT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "BIP-L" & (STOPSERT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "BIP+L" & (STOPSERT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "BIP+L" & (STOPSERT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
+      DrugName == "Various" & (STOPSERT == 1 | STOPESCI == 1 | STOPCITA == 1 | STOPFLUO == 1 | STOPPARO == 1 | STOPDESV == 1 | STOPVENL == 1 | STOPDULO == 1 | STOPAMIT == 1 | STOPMIRT == 1) ~ 1,
+      DrugName == "Various" & (STOPSERT != 1 & STOPESCI != 1 & STOPCITA != 1 & STOPFLUO != 1 & STOPPARO != 1 & STOPDESV != 1 & STOPVENL != 1 & STOPDULO != 1 & STOPAMIT != 1 & STOPMIRT != 1) ~ 0,
       TRUE ~ NA_real_
     )
   )
@@ -256,7 +281,7 @@ full <- full %>%
   create_treatment_columns("NOSE") %>%
   create_treatment_columns("STOP")
 
-write.csv(full, paste0("/scratch/user/uqawal15/full_data_", duration, "days.csv"), row.names = FALSE)
+write.csv(full, paste0("/QRISdata/Q7280/pharmacogenomics/phenotypes/treatment_phenotypes/full_data_", duration, "days.csv"), row.names = FALSE)
 
 
 
