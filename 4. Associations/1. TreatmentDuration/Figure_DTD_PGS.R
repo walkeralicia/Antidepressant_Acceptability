@@ -4,7 +4,7 @@ library(cowplot)
 library(readxl)
 
 # -- Read in association results and process data in a single pipeline
-processed_data <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\All_Results.xlsx", sheet = "Table3") %>%
+processed_data <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table3") %>%
   # Fill in NA values
   fill(Dependent, PGS, .direction = "down") %>%
   # Filter for std_pgs terms only
@@ -42,16 +42,16 @@ plot_data <- list(
 
 # -- Create a function for plot generation
 create_plot <- function(data, title, x_offset = 0.01, show_y_axis = TRUE) {
-  BASE_SIZE <- 35
+  BASE_SIZE <- 10
   dodge_width <- 0.8
   
   p <- ggplot(data, aes(y = PGS, x = estimate)) +
     geom_point(position = position_dodge(width = dodge_width), 
-               size = 10, color = "#2C7FB8", shape = 18) +  
+               size = 4, color = "#2C7FB8", shape = 18) +  
     geom_errorbar(aes(xmin = estimate - (1.96 * std.error), 
                       xmax = estimate + (1.96 * std.error)), 
                   position = position_dodge(width = dodge_width), 
-                  linewidth = 1.5, width = 0.5, color = "#2C7FB8") +
+                  linewidth = 0.5, width = 0.3, color = "#2C7FB8") +
     geom_vline(xintercept = 0, linetype = "longdash") +
     xlab(title) +
     theme_classic(base_size = BASE_SIZE) +
@@ -59,7 +59,7 @@ create_plot <- function(data, title, x_offset = 0.01, show_y_axis = TRUE) {
                   y = PGS, 
                   x = (estimate + (1.96 * std.error) + x_offset)),
               color = "black",
-              size = 14,
+              size = 6,
               position = position_dodge(width = dodge_width)) +  
     theme(
       strip.text = element_blank(),
@@ -97,7 +97,7 @@ x_offset1 <- max(plot_data$duration$estimate + 1.96 * plot_data$duration$std.err
 x_offset2 <- max(plot_data$diversity$estimate + 1.96 * plot_data$diversity$std.error, na.rm = TRUE) * 0.15
 x_offset3 <- max(plot_data$class_diversity$estimate + 1.96 * plot_data$class_diversity$std.error, na.rm = TRUE) * 0.15
 
-p1 <- create_plot(plot_data$duration, "AD Burden", x_offset1, TRUE)
+p1 <- create_plot(plot_data$duration, "Total AD Dispense", x_offset1, TRUE)
 p2 <- create_plot(plot_data$diversity, "AD Diversity", x_offset2, FALSE)
 p3 <- create_plot(plot_data$class_diversity, "Class Diversity", x_offset3, FALSE)
 
@@ -111,5 +111,5 @@ plots <- plot_grid(
 )
 
 # -- Save combined plot
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\4. Associations\\1. TreatmentDuration\\Results\\PGS_PrescriptionDuration_Associations.png", 
-       plot = plots, device = "png", width = 700, height = 500, units = "mm")
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\1. TreatmentDuration\\Results\\PGS_PrescriptionDuration_Associations.png", 
+       plot = plots, device = "png", width = 200, height = 130, units = "mm", dpi = 600)

@@ -1,6 +1,6 @@
 
 #----------------- PGS ~ ATC Class -------------------------------------------------------------------------
-
+options(scipen = 999)
 
 #-- Load R libraries
 library(dplyr)
@@ -12,7 +12,7 @@ library(viridis)
 dodge_width <- 0.8
 
 #-- Read in results in which the dependent variable is quantitative
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\All_results.xlsx", sheet = "Table12")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table12")
 
 #-- Drug order
 drug_order <- c("SNRI", "TeCA", "TCA", "BIP+L", "BIP-L", "Various")
@@ -53,6 +53,9 @@ dat_ssri <- dat_ssri %>%
       Sig_FDR == "*" & is.na(Sig_Bonf) ~ "*",
       TRUE ~ NA
     )
+  ) %>%
+  mutate(
+    P.value = as.numeric(P.value)
   )
 
 
@@ -69,7 +72,7 @@ p <- ggplot(dat_ssri, aes(y = PGS, x = estimate, color = P.value)) +
             position = position_dodge(width = dodge_width)) +  
   facet_wrap(~Term, nrow = 1, labeller = labeller(Term = med_labels)) +
   ylab("PGS Trait") +
-  xlab(expression("Estimate(SD units) (SSRI as reference) ", paste("(", pm, " 95% CI)"))) +
+  xlab("Estimate (SD units; SSRI as reference [N=3,573])") +
   theme_classic(base_size = 12) +
   scale_color_viridis(option = "D") +
   theme(
@@ -86,7 +89,7 @@ p <- ggplot(dat_ssri, aes(y = PGS, x = estimate, color = P.value)) +
 
 p
 
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\4. Associations\\2. PGS\\Results\\AGDS_360days_PGS_Associations_Reference_SSRI.png", 
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\2. PGS\\Results\\AGDS_360days_PGS_Associations_Reference_SSRI.png", 
        plot = p, device = "png", width = 250, height = 120, units = "mm", dpi = 1000)
 
 
@@ -106,7 +109,7 @@ library(viridis)
 dodge_width <- 0.8
 
 #-- Read in results in which the dependent variable is quantitative
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\All_results.xlsx", sheet = "Table13")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table13")
 
 #-- Fill in NA
 dat_filled <- dat %>%
@@ -130,6 +133,9 @@ dat_ssri <- dat_ssri %>%
       Sig_FDR == "*" & is.na(Sig_Bonf) ~ "*",
       TRUE ~ NA
     )
+  ) %>%
+  mutate(
+    P.value = as.numeric(P.value)
   )
 
 
@@ -149,7 +155,7 @@ p <- ggplot(dat_ssri, aes(x = Term, y = estimate, group = Threshold, colour = Th
             position = position_dodge(width = dodge_width)) +  
   facet_wrap(~PGS, nrow = 5, scales = "free_y") +
   xlab("Treatment group") +
-  ylab("Estimate difference from Sertraline") +
+  ylab("Estimate difference from SSRI-Sertraline") +
   theme_bw(base_size = 27) +
   scale_color_manual(values = custom_colors) +
   theme(
@@ -161,7 +167,7 @@ p <- ggplot(dat_ssri, aes(x = Term, y = estimate, group = Threshold, colour = Th
     legend.title = element_blank()
   )
 
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\4. Associations\\2. PGS\\Results\\Supp_PGS_groups.png", 
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\2. PGS\\Results\\Supp_PGS_groups.png", 
        plot = p, device = "png", width = 500, height = 650, units = "mm")
 
 

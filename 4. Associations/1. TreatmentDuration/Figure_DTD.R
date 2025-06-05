@@ -5,22 +5,34 @@ library(readxl)
 library(viridis)
 
 # -- Read in association results
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\All_Results.xlsx", sheet = "Table2")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table2")
 
 # -- Pre-processing: fill missing values, filter, and categorize in a single pipeline
 processed_data <- dat %>%
   # Fill in NA values
-  fill(Dependent, Independent, Total_N, .direction = "down") %>%
+  fill(Dependent, Independent, Total_N, Total_Cases, Total_Controls, .direction = "down") %>%
   # Filter relevant terms
   filter(!Term %in% c("Intercept")) %>%
   filter(Term != "Age" & Term != "Sex" | 
            (Term == "Age" & Independent == "Age") | 
            (Term == "Sex" & Independent == "Sex")) %>%
   # Select needed columns  
-  select(Dependent, Independent, Total_N, Estimate, `Std. Error`, `Pr(>|t|)`, FDR_P, Bonf_P, Sig_FDR, Sig_Bonf) %>%
+  select(Dependent, Independent, Total_N, Estimate, `Std. Error`, `Pr(>|t|)`, FDR_P, Bonf_P, Sig_FDR, Sig_Bonf, Total_Cases, Total_Controls)
+
+cases <- processed_data %>%
+  filter(!is.na(Total_Cases)) %>%
+  select(Dependent, Independent, Total_Cases, Total_Controls) %>%
+  mutate(
+    Cases_perc = round(Total_Cases/(Total_Cases+Total_Controls)*100, 0)
+  ) %>%
+  select(-Total_Controls, -Total_Cases)
+  
+
+processed_data <- processed_data %>%
+  left_join(cases, by = c("Dependent", "Independent")) %>%
   # Create label with participant count
   mutate(
-    Label = paste0(Independent, " (N=", Total_N, ")"),
+    Label = paste0(Independent, " (", Total_N, ";", Cases_perc, "%)"),
     # Significance labeling
     Sig_label = case_when(
       Sig_Bonf == "*" ~ "**",
@@ -76,12 +88,12 @@ plot_data <- list(
 
 # -- Function to create a plot
 create_plot <- function(data, title, x_limits, show_y_axis = TRUE, show_facet_labels = TRUE) {
-  BASE_SIZE <- 40
+  BASE_SIZE <- 10
   dodge_width <- 0.8
   
   # Base plot
   p <- ggplot(data, aes(y = Label, x = Estimate, color = Category)) +
-    geom_point(position = position_dodge(width = dodge_width), size = 10, shape = 18) +  
+    geom_point(position = position_dodge(width = dodge_width), size = 8, shape = 18) +  
     geom_errorbar(aes(xmin = Estimate - (1.96 * `Std. Error`), 
                       xmax = Estimate + (1.96 * `Std. Error`)), 
                   position = position_dodge(width = dodge_width), 
@@ -100,8 +112,8 @@ create_plot <- function(data, title, x_limits, show_y_axis = TRUE, show_facet_la
     theme(
       panel.spacing = unit(1, "lines"),
       panel.heights = unit(c(5, 8, 12, 10), "null"),
-      axis.text.x = element_text(color = "black", size = BASE_SIZE + 1),
-      axis.title.x = element_text(color = "black", size = BASE_SIZE + 2, face = "bold"),
+      axis.text.x = element_text(color = "black", size = 20),
+      axis.title.x = element_text(color = "black", size = 20, face = "bold"),
       axis.title.y = element_blank(),
       legend.position = "none"
     )
@@ -110,8 +122,8 @@ create_plot <- function(data, title, x_limits, show_y_axis = TRUE, show_facet_la
   if (show_facet_labels) {
     p <- p + facet_grid(Category ~ ., scales = "free_y", space = "free_y", switch = "y") +
       theme(
-        strip.text.y = element_text(size = BASE_SIZE),
-        axis.text.y = element_text(color = "black"),
+        strip.text.y = element_text(size = 20),
+        axis.text.y = element_text(color = "black", size = 20),
         strip.background = element_rect(fill = "white")
       )
   } else {
@@ -134,7 +146,7 @@ create_plot <- function(data, title, x_limits, show_y_axis = TRUE, show_facet_la
 }
 
 # -- Create plots using the function
-p1 <- create_plot(plot_data$TotalPrescriptionDays, "AD Burden", c(-130, 270), TRUE, TRUE)
+p1 <- create_plot(plot_data$TotalPrescriptionDays, "Total AD Dispense", c(-130, 270), TRUE, TRUE)
 p2 <- create_plot(plot_data$NumberOfATC, "AD Diversity", c(-0.25, 0.7), FALSE, FALSE)
 p3 <- create_plot(plot_data$NumberADClass, "Class Diversity", c(-0.25, 0.4), FALSE, FALSE)
 
@@ -144,9 +156,9 @@ plots <- plot_grid(
   nrow = 1,
   align = 'h',
   axis = 'tb',
-  rel_widths = c(2.4, 1, 1)
+  rel_widths = c(2.5, 1, 1)
 )
 
 # -- Save combined plot
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\4. Associations\\1. TreatmentDuration\\Results\\PrescriptionDuration_Associations.png", 
-       plot = plots, device = "png", width = 700, height = 700, units = "mm")
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\1. TreatmentDuration\\Results\\PrescriptionDuration_Associations.png", 
+       plot = plots, device = "png", width = 400, height = 400, units = "mm", dpi = 600)

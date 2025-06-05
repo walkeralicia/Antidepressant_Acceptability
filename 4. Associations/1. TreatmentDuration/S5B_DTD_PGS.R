@@ -38,11 +38,11 @@ pharma <- ad_mapped %>%
 
 # Join data
 pheno <- pheno %>% 
-  mutate(ParticipantID = STUDYID)
+  rename(ParticipantID = STUDYID)
 
-pharma_full <- ad_mapped %>%
-  left_join(pheno, by = "ParticipantID") %>%
-  left_join(pharma, by = "ParticipantID")
+#-- Join phenotypic data with pharma data
+pharma_full <- pharma %>%
+  left_join(pheno, by = "ParticipantID")
 
 # -- Convert SEX
 pharma_full <- pharma_full %>%
@@ -83,7 +83,7 @@ for (j in 1:length(selected_pgs)) {
   if (j != 16) {
     # -- Read in PGS file for the selected trait
     pgs_file_path <- selected_pgs[j]
-    pgs <- read_table(selected_pgs[j], col_names = FALSE)
+    pgs <- read_table(selected_pgs[j], col_names = TRUE)
     
     # -- Extract PGS trait name
     pgs_filename <- basename(pgs_file_path)
@@ -94,16 +94,16 @@ for (j in 1:length(selected_pgs)) {
     # -- Filter PGS for Europeans (loss of 806 individuals)
     ids_to_keep <- as.character(eur$X2)
     pgs_e <- pgs %>% 
-      filter(X2 %in% ids_to_keep)
+      filter(IID %in% ids_to_keep)
     
     # -- Standardize PGS
     pgs_e <- pgs_e %>%
-      mutate(X6 = as.numeric(X6),
-             std_pgs = scale(X6)[,1])
+      mutate(SCORE1_SUM = as.numeric(SCORE1_SUM),
+             std_pgs = scale(SCORE1_SUM)[,1])
     
     # -- Join PGS file with ad treatment group data
     pharma_link <- inner_join(link, pharma_full, by = "ParticipantID")
-    pgs_atc <- inner_join(pharma_link, pgs_e, by = c("IID" = "X2"))
+    pgs_atc <- inner_join(pharma_link, pgs_e, by = c("IID" = "IID"))
   } else {
     
     # -- Read in PGS file for the selected trait
@@ -238,6 +238,20 @@ dependent_mapping <- c(
 results_lm_renamed <- results_lm_renamed %>%
   mutate(Dependent = recode(Dependent, !!!dependent_mapping))
 
+
+results_lm_renamed <- results_lm_renamed %>%
+  mutate(
+    across(c(P.value, FDR_P, Bonf_P), ~  format(signif(.x, 2), scientific = TRUE))
+  ) %>%
+  mutate(
+    std.error = if_else(Dependent %in% c("Medication Diversity", "Class Diversity"),
+                        round(std.error, 4), round(std.error, 2)),
+    estimate = if_else(Dependent %in% c("Medication Diversity", "Class Diversity"),
+                       round(estimate, 4), round(estimate, 1)),
+    t.value = if_else(Dependent %in% c("Medication Diversity", "Class Diversity"),
+                      round(t.value, 2), round(t.value, 2))
+  )
+
 # Format for Excel display
 results_lm_renamed <- results_lm_renamed %>%
   group_by(Dependent, PGS) %>%
@@ -246,14 +260,9 @@ results_lm_renamed <- results_lm_renamed %>%
     PGS = if_else(PGS != lag(PGS, default = ""), PGS, NA_character_)
   )
 
-results_lm_renamed <- results_lm_renamed %>%
-  mutate(
-    across(c(P.value, FDR_P, Bonf_P), ~ signif(.x, 3)),
-    across(c(std.error, estimate, t.value), ~ round(.x, 2))
-  )
-
 # Add to existing workbook
 wb <- loadWorkbook(file.path("/scratch/user/uqawal15", "All_Results.xlsx"))
+removeWorksheet(wb, "Table3")
 addWorksheet(wb, "Table3")
 writeData(wb, "Table3", results_lm_renamed)
 saveWorkbook(wb, file.path(output_dir, "All_Results.xlsx"), overwrite = TRUE)

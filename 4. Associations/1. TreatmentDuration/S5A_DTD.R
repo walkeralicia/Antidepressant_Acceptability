@@ -93,17 +93,20 @@ create_derived_column <- function(df, prefix) {
   return(result)
 }
 
-# -- Add WELLAD and STOPAD columns
+#-- Add WELLAD and STOPAD columns
 pharma_full <- pharma_full %>%
   create_derived_column("WELL") %>%
   create_derived_column("STOP")
 
-# -- Define independent variables
+#-- Define independent variables
 independent <- c("AGE", "SEX", "AGE2WKF", "Recurrent",
                  "BMI", "SUICIDEA", "SELFHARM", "EDU", "PHYSHLTH", "REGSMK", "DRK3FRQ",
                  "TYPE11B", "TYPE33C","DXPDMD", "DXANX", "DXPERSD", "DXBPD2", "DXSUD", "DXADHD", "DXOCD", "DXSAD", 
                  "DXPHYS3", "DXPHYS6", "DXPHYS12", "DXPHYS34", "MIGEVR", "DXENDO", "DXFIBRO", "DXPCOS",
                  "LOWINT2W", "DEP2WK", "FATIGUED.x", "GUILTY", "NOFOCUS", "DEATHTHK", "APWTCHANGE", "SLEEP", "MOVEMENT")
+
+#-- Vector of binary variables
+non_binary <- c("AGE", "AGE2WKF", "BMI", "EDU", "PHYSHLTH", "DRK3FRQ")
 
 # -- Convert SEX
 pharma_full <- pharma_full %>%
@@ -118,6 +121,20 @@ run_lm <- function(var, data, dependent_var, adjust_vars = NULL) {
   
   # Filter only for this specific variable
   model_data <- data %>% filter(!is.na(!!sym(var)))
+  
+  #-- Number of cases and controls if variable is binary
+  if (!(var %in% non_binary)) {
+    Total_Cases <- model_data %>%
+      filter(!!sym(var) == 1) %>%
+      nrow()
+    
+    Total_Controls <- model_data %>%
+      filter(!!sym(var) == 0) %>%
+      nrow()
+  } else {
+    Total_Cases <- NA
+    Total_Controls <- NA
+  }
   
   if (is.null(adjust_vars)) {
     # No adjustment variables
@@ -139,7 +156,9 @@ run_lm <- function(var, data, dependent_var, adjust_vars = NULL) {
   coefficients <- coefficients %>%
     mutate(
       Independent = var,
-      Total_N = nrow(model_data)
+      Total_N = nrow(model_data),
+      Total_Cases = Total_Cases,
+      Total_Controls = Total_Controls
     )
   
   return(coefficients)
@@ -150,7 +169,7 @@ tab <- pharma_full %>%
   select(ParticipantID, SEX, AGE, num_ATC, num_class, TotalPrescriptionDays, all_of(independent)) %>%
   distinct()
 
-#=========== Analysis 1: Medication Burden (Cumulative Total Prescription Days) =============================================
+#=========== Analysis 1: Total Dispense (Cumulative Total Prescription Days) =============================================
 
 lm1_base_data <- tab %>% 
   filter(!is.na(AGE) & !is.na(SEX) & !is.na(TotalPrescriptionDays))
@@ -168,10 +187,10 @@ lm1_results <- map_dfr(independent, function(var) {
 results1 <- lm1_results %>%
   mutate(Dependent = "Cumulative Prescription Dispense (days)") %>%
   arrange(Independent) %>%
-  select(Dependent, Independent, Term, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`, Total_N)
+  select(Dependent, Independent, Term, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`, Total_N, Total_Cases, Total_Controls)
 
 # Calculate FDR and Bonferroni p-values
-pgs_terms <- results1 %>%
+terms <- results1 %>%
   filter(!(Term %in% c("(Intercept)", "AGE", "SEX")) | (Independent %in% c("AGE", "SEX") & Term != "(Intercept)")) %>%
   mutate(
     FDR_P = p.adjust(`Pr(>|t|)`, method = "fdr"),
@@ -183,24 +202,28 @@ pgs_terms <- results1 %>%
 
 # Join with main results
 results1 <- results1 %>%
-  left_join(pgs_terms, by = c("Dependent", "Independent", "Term")) %>%
+  left_join(terms, by = c("Dependent", "Independent", "Term")) %>%
   arrange(Dependent, Independent) %>%
   group_by(Dependent, Independent) %>%
   mutate(
     Dependent = if_else(Dependent != lag(Dependent, default = ""), Dependent, NA_character_),
     Independent = if_else(Independent != lag(Independent, default = ""), Independent, NA_character_),
-    Total_N = if_else(Total_N != lag(Total_N, default = 0), Total_N, NA_integer_)
+    Total_N = if_else(Total_N != lag(Total_N, default = 0), Total_N, NA_integer_),
+    Total_Cases = if_else(Total_Cases != lag(Total_Cases, default = 0), Total_Cases, NA_integer_),
+    Total_Controls = if_else(Total_Controls != lag(Total_Controls, default = 0), Total_Controls, NA_integer_)
   ) %>%
   mutate(
-    across(c(`Pr(>|t|)`, FDR_P, Bonf_P), ~ signif(.x, 3)),
-    across(c(`Std. Error`, Estimate, `t value`), ~ round(.x, 2))
+    across(c(`Pr(>|t|)`, FDR_P, Bonf_P), ~ format(signif(.x, 2), scientific = TRUE)),
+    across(c(`Std. Error`,`t value`), ~ round(.x, 2)),
+    across(c(Estimate), ~ round(.x, 1))
   )
 
 #================= Medication-specific effects analysis =====================================================
 filtered_pheno <- pharma_full %>%
   filter(!is.na(AGE) & !is.na(SEX)) %>%
   select(ParticipantID, SEX, AGE, PrescriptionDays, DrugName, DrugClass) %>%
-  distinct()
+  distinct() %>%
+  filter(ParticipantID %in% pheno$ParticipantID) # Filter for those with phenotypes
 
 # Count participants per medication
 Medication_N <- filtered_pheno %>%
@@ -222,15 +245,16 @@ lm_output <- lm_output %>%
   mutate(
     Term = str_replace(Term, "DrugName", ""),
     Term = if_else(Term == "(Intercept)", "SSRI:Escitalopram", Term),
-    Total_N = nrow(filtered_pheno)
+    Total_N = length(unique(filtered_pheno$ParticipantID))
   )
 
 # Join with participant counts
 med_results <- lm_output %>%
   left_join(Medication_N, by = c("Term" = "DrugName")) %>%
   mutate(
-    `Pr(>|t|)` = signif(`Pr(>|t|)`, 3),
-    across(c(`Std. Error`, Estimate, `t value`), ~ round(.x, 2)),
+    `Pr(>|t|)` = format(signif(`Pr(>|t|)`, 2),scientific = TRUE),
+    across(c(`Std. Error`,`t value`), ~ round(.x, 2)),
+    across(c(Estimate), ~ round(.x, 1)),
     Dependent = "Cumulative Prescription Dispense (days)"
   ) %>%
   arrange(Dependent, Term) %>%
@@ -242,15 +266,23 @@ med_results <- med_results %>%
   mutate(
     Dependent = if_else(Dependent != lag(Dependent, default = ""), Dependent, NA_character_),
     Total_N = if_else(Total_N != lag(Total_N, default = 0), Total_N, NA_integer_)
+  ) %>%
+  mutate(
+    Term = if_else(Term == "SSRI:Escitalopram", "Reference:SSRI:Escitalopram",
+                   if_else(Term == "AGE", "AGE (yrs)", 
+                           if_else(Term == "SEX", "SEX(Female=1, Male=2)", Term)
+                   )
+    )
   )
-
+    
 # Save the results
 write_csv(med_results, file.path(output_dir, "LM_PrescriptionDays_MedicationEffects_Escitalopram_Reference.csv"))
 
 #============ Class-specific effects ==============================================================
 # Set reference level for drug class
 filtered_pheno <- filtered_pheno %>%
-  mutate(DrugClass = factor(DrugClass, levels = c("SSRI", "SNRI", "TCA", "TeCA")))
+  mutate(DrugClass = factor(DrugClass, levels = c("SSRI", "SNRI", "TCA", "TeCA"))) %>%
+  filter(ParticipantID %in% pheno$ParticipantID) # Filter for those with phenotypes
 
 # Count by class
 Class_N <- filtered_pheno %>%
@@ -266,15 +298,16 @@ lm_output <- lm_output %>%
   mutate(
     Term = str_replace(Term, "DrugClass", ""),
     Term = if_else(Term == "(Intercept)", "SSRI", Term),
-    Total_N = nrow(filtered_pheno)
+    Total_N = length(unique(filtered_pheno$ParticipantID))
   )
 
 # Join with class counts
 class_results <- lm_output %>%
   left_join(Class_N, by = c("Term" = "DrugClass")) %>%
   mutate(
-    `Pr(>|t|)` = signif(`Pr(>|t|)`, 3),
-    across(c(`Std. Error`, Estimate, `t value`), ~ round(.x, 2)),
+    `Pr(>|t|)` = format(signif(`Pr(>|t|)`, 2),scientific = TRUE),
+    across(c(`Std. Error`,`t value`), ~ round(.x, 2)),
+    across(c(Estimate), ~ round(.x, 1)),
     Dependent = "Cumulative Prescription Dispense (days)"
   ) %>%
   arrange(Dependent, Term) %>%
@@ -286,12 +319,18 @@ class_results <- class_results %>%
   mutate(
     Dependent = if_else(Dependent != lag(Dependent, default = ""), Dependent, NA_character_),
     Total_N = if_else(Total_N != lag(Total_N, default = 0), Total_N, NA_integer_)
+  )  %>%
+  mutate(
+    Term = if_else(Term == "SSRI", "Reference:SSRI",
+                   if_else(Term == "AGE", "AGE (yrs)", 
+                           if_else(Term == "SEX", "SEX(Female=1, Male=2)", Term)
+                   )
+    )
   )
-
 # Save the results
 write_csv(class_results, file.path(output_dir, "LM_PrescriptionDays_ClassEffects_SSRI_Reference.csv"))
 
-#============== Analysis 2: Medication Diversity (Number of unique Antidepressants) =============================================
+#============== Analysis 2: Medication Diversity =============================================
 
 run_analysis <- function(data, dependent_var, dependent_label) {
   # Filter data
@@ -311,10 +350,10 @@ run_analysis <- function(data, dependent_var, dependent_label) {
   results <- results %>%
     mutate(Dependent = dependent_label) %>%
     arrange(Independent) %>%
-    select(Dependent, Independent, Term, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`, Total_N)
+    select(Dependent, Independent, Term, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`, Total_N, Total_Cases, Total_Controls)
   
   # Calculate FDR and Bonferroni p-values
-  pgs_terms <- results %>%
+  terms <- results %>%
     filter(!(Term %in% c("(Intercept)", "AGE", "SEX")) | (Independent %in% c("AGE", "SEX") & Term != "(Intercept)")) %>%
     mutate(
       FDR_P = p.adjust(`Pr(>|t|)`, method = "fdr"),
@@ -325,18 +364,21 @@ run_analysis <- function(data, dependent_var, dependent_label) {
     select(Dependent, Independent, Term, FDR_P, Bonf_P, Sig_FDR, Sig_Bonf)
   
   # Join and format
-  results %>%
-    left_join(pgs_terms, by = c("Dependent", "Independent", "Term")) %>%
+  results <- results %>%
+    left_join(terms, by = c("Dependent", "Independent", "Term")) %>%
     arrange(Dependent, Independent) %>%
     group_by(Dependent, Independent) %>%
     mutate(
       Dependent = if_else(Dependent != lag(Dependent, default = ""), Dependent, NA_character_),
       Independent = if_else(Independent != lag(Independent, default = ""), Independent, NA_character_),
-      Total_N = if_else(Total_N != lag(Total_N, default = 0), Total_N, NA_integer_)
+      Total_N = if_else(Total_N != lag(Total_N, default = 0), Total_N, NA_integer_),
+      Total_Cases = if_else(Total_Cases != lag(Total_Cases, default = 0), Total_Cases, NA_integer_),
+      Total_Controls = if_else(Total_Controls != lag(Total_Controls, default = 0), Total_Controls, NA_integer_)
     ) %>%
     mutate(
-      across(c(`Pr(>|t|)`, FDR_P, Bonf_P), ~ signif(.x, 3)),
-      across(c(`Std. Error`, Estimate, `t value`), ~ round(.x, 2))
+      across(c(`Pr(>|t|)`, FDR_P, Bonf_P), ~ format(signif(.x, 2), scientific = TRUE)),
+      across(c(`Std. Error`, Estimate), ~ round(.x, 4)),
+      across(c(`t value`), ~ round(.x, 2))
     )
 }
 
@@ -408,12 +450,12 @@ wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
 
 # Medication and class effects
 drug_results <- bind_rows(med_results, class_results)
-#removeWorksheet(wb, "Table1")
+removeWorksheet(wb, "Table1")
 addWorksheet(wb, "Table1")
 writeData(wb, "Table1", drug_results)
 
 # Main results
-#removeWorksheet(wb, "Table2")
+removeWorksheet(wb, "Table2")
 addWorksheet(wb, "Table2")
 writeData(wb, "Table2", results_all)
 
