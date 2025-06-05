@@ -7,12 +7,13 @@ library(tidyr)
 library(dplyr)
 library(cowplot)
 library(viridis)
+library(readxl)
 
 #-- Load data
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\All_Results.xlsx", sheet =15) %>%
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table18") %>%
   fill(Model, y.level, .direction = "down") %>%
   filter(Model == "Self Report Predictors") %>%
-  filter(term != "DXPDMD")
+  filter(term != "PDMD")
 
 # First, transform your data to better interpret continuous predictors
 plot_data <- dat %>%
@@ -55,7 +56,7 @@ p1 <- ggplot(plot_data, aes(x = estimate, y = reorder(term, estimate), color = p
 #Note: For continuous predictors (_scaled), OR represents\nthe change in odds for a 1 SD increase in the predictor
 #==================== Include PGS as Predictors =====================
 #-- Load data
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\All_Results.xlsx", sheet =15) %>%
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet ="Table18") %>%
   fill(Model, y.level, .direction = "down") %>%
   filter(Model == "All Predictors")
 
@@ -102,7 +103,7 @@ p3 <- ggplot(plot_data, aes(x = estimate, y = reorder(term, estimate), color = p
 #============= Only PGS as Predictors ====================
 
 #-- Load data
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\All_Results.xlsx", sheet =15) %>%
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet ="Table18") %>%
   fill(Model, y.level, .direction = "down") %>%
   filter(Model == "PGS Predictors")
 
@@ -156,6 +157,6 @@ combined_plot <- plot_grid(
 
 
 # Save the combined figure
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\4. Associations\\4. Multinomial_Regression\\combined_multinomial_regression_models.png", 
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\4. Multinomial_Regression\\combined_multinomial_regression_models.png", 
        combined_plot, width = 10, height = 10, dpi = 300)
 

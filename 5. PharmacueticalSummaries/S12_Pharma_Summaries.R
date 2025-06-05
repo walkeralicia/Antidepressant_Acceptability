@@ -75,6 +75,12 @@ load_data <- function() {
       LatestPrescription = as.Date(LatestPrescription, format = "%d/%m/%Y")
     )
   
+  #-- Load phenotype data
+  pheno <- read.csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv"))
+  
+  #-- Participants with phenotype and pharma data
+  ad <- ad %>% filter(ParticipantID %in% pheno$STUDYID)
+  
   # Drug reference data
   atc_drug_ref <- data.frame(
     DrugName = c("SSRI:Sertraline", "SSRI:Escitalopram", "SSRI:Citalopram", "SNRI:Venlafaxine", 
@@ -87,9 +93,6 @@ load_data <- function() {
   
   # Join and prepare main dataset
   ad_mapped <- left_join(ad, atc_drug_ref, by = c("ATCCode" = "ATCCodes"))
-  
-  # Load phenotype data
-  pheno <- read.csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv"))
   
   # Create combined dataset
   inner_combined <- inner_join(ad_mapped, pheno, by = c("ParticipantID" = "STUDYID"))
@@ -105,7 +108,7 @@ load_data <- function() {
 
 # Common theme elements
 create_base_theme <- function() {
-  theme_minimal(base_size = 18) +
+  theme_classic(base_size = 18) +
     theme(
       axis.text.y = element_text(color = "black"),
       axis.text.x = element_text(color = "black"),
@@ -169,7 +172,7 @@ create_ridge_plot <- function(data, config) {
                fill = !!sym(group_var), color = !!sym(group_var))) +
     geom_density_ridges(scale = 1) +
     geom_vline(xintercept = 360, linetype = "longdash", color = "black") +
-    labs(x = "Cumulative Prescription\nDispense over\n1660 days", y = config$group_label) +
+    labs(x = "Cumulative Prescription\nDuration", y = config$group_label) +
     scale_x_continuous(limits = c(0, 1660)) +
     scale_color_manual(values = config$color_map) + 
     scale_fill_manual(values = config$color_map) +
@@ -255,7 +258,7 @@ create_efficacy_plot <- function(data, config) {
     geom_line(linewidth = 1) +
     geom_point(size = 3) +
     labs(
-      x = "Cumulative Prescription\nDispense Threshold", 
+      x = "Cumulative Prescription\nDuration Threshold", 
       y = "Proportion of participants",
       color = config$group_label,
       title = "Self-Report Responders"
@@ -340,7 +343,7 @@ create_discontinuation_plot <- function(data, config) {
     geom_line(linewidth = 1) +
     geom_point(size = 3) +
     labs(
-      x = "Cumulative Prescription\nDispense Threshold", 
+      x = "Cumulative Prescription\nDuration Threshold", 
       y = "Proportion of participants",
       color = config$group_label,
       title = "Self-Report Discontinuation\ndue to Side Effects"
@@ -398,7 +401,7 @@ create_repeat_prescription_plot <- function(data, config) {
     geom_line(linewidth = 1) +
     geom_point(size = 3) +
     labs(
-      x = "Cumulative Prescription\nDispense Threshold", 
+      x = "Cumulative Prescription\nDuration Threshold", 
       y = "Proportion of participants",
       color = config$group_label,
       title = "Repeat prescription episodes"
@@ -457,7 +460,7 @@ create_depression_episodes_plot <- function(data, config) {
     geom_line(linewidth = 1) +
     geom_point(size = 3) +
     labs(
-      x = "Cumulative Prescription\nDispense Threshold", 
+      x = "Cumulative Prescription\nDuration Threshold", 
       y = "Median",
       color = config$group_label,
       title = "Self-reported number of MDD episodes"
@@ -515,7 +518,7 @@ create_plot7 <- function(data, config) {
       angle_x_theme() +
       theme(
         axis.text.y = element_text(color = "black"),
-        axis.title.y = element_text(color = "black", size = 16),
+        axis.title.y = element_text(color = "black", size = 14),
         axis.title.x = element_text(color = "black", size = 14),
         legend.position = "none",
         plot.title = element_text(size = 18)
@@ -554,22 +557,26 @@ create_effects_plot <- function(config, effect_type = "medication") {
   if(effect_type == "medication") {
     # Medication effects (using individual drugs)
     effects_file <- "LM_PrescriptionDays_MedicationEffects_Escitalopram_Reference.csv"
-    reference_value <- "SSRI:Escitalopram"
+    reference_value <- "Reference:SSRI:Escitalopram"
     y_label <- "Medication"
-    x_label <- "Cumulative Prescription\nDispense:\nDifference from\nreference SSRI:Escitalopram"
-    filter_values <- config$ordered_values
-    factor_levels <- config$reversed_values
+    x_label <- "Cumulative Prescription\nDuration:\nDifference from\nreference SSRI:Escitalopram"
+    filter_values <- c("Reference:SSRI:Escitalopram", "SSRI:Sertraline", "SNRI:Desvenlafaxine", 
+                       "SNRI:Venlafaxine", "TeCA:Mirtazapine", "SSRI:Fluoxetine",
+                       "SNRI:Duloxetine", "TCA:Amitriptyline", "SSRI:Citalopram", "SSRI:Paroxetine")
+    factor_levels <- c("Reference:SSRI:Escitalopram", "SSRI:Sertraline", "SNRI:Desvenlafaxine", 
+                       "SNRI:Venlafaxine", "TeCA:Mirtazapine", "SSRI:Fluoxetine",
+                       "SNRI:Duloxetine", "TCA:Amitriptyline", "SSRI:Citalopram", "SSRI:Paroxetine")
     x_limits <- c(-400, 250)
     # For medication effects, hide y-axis text (will be shown in plot1)
     show_y_text <- FALSE
   } else {
     # Class effects
     effects_file <- "LM_PrescriptionDays_ClassEffects_SSRI_Reference.csv"
-    reference_value <- "SSRI"
+    reference_value <- "Reference:SSRI"
     y_label <- "Drug Class"
-    x_label <- "Cumulative Prescription\nDispense:\nDifference from\nreference SSRI"
-    filter_values <- c("SSRI", "SNRI", "TCA", "TeCA")
-    factor_levels <- c("SSRI", "SNRI", "TeCA", "TCA")
+    x_label <- "Cumulative Prescription\nDuration:\nDifference from\nreference SSRI"
+    filter_values <- c("Reference:SSRI", "SNRI", "TCA", "TeCA")
+    factor_levels <- c("Reference:SSRI", "SNRI", "TeCA", "TCA")
     x_limits <- c(-400, 250)
     # For class effects, show y-axis text 
     show_y_text <- TRUE
@@ -577,7 +584,8 @@ create_effects_plot <- function(config, effect_type = "medication") {
   
   # Read and process data
   effects_data <- read.csv(file.path("/QRISdata/Q7280/pharmacogenomics/pharma_summaries", effects_file)) %>%
-    mutate(Dependent = "PrescriptionDays")
+    mutate(Dependent = "PrescriptionDays") %>%
+    fill(Dependent, Total_N, .direction = "down")
   
   # Filter and calculate significance
   processed_data <- effects_data %>%
@@ -600,9 +608,10 @@ create_effects_plot <- function(config, effect_type = "medication") {
   geom_vline(xintercept = 0) +
   ylab(y_label) +
   xlab(x_label) +
-  theme_bw(base_size = 20) +
+  theme_classic(base_size = 20) +
   theme(
     panel.spacing = unit(1, "lines"),
+    axis.ticks.y = element_blank(),
     axis.text.x = element_text(color = "black"),
     axis.title.x = element_text(color = "black", face = "bold", size = 16),
     axis.text.y = element_blank(),
@@ -747,16 +756,43 @@ combine_and_save_plots <- function(plots_list, outdir, config) {
   # Save the patterns grid
   png(
     filename = file.path(outdir, patterns_filename),
-    width = 250, height = 200, units = 'mm',
+    width = 250, height = 300, units = 'mm',
     bg = "white", res = 600, type = c("cairo")
   )
   print(patterns_grid)
   dev.off()
   
+  # Combine top_grid and efficacy_grid vertically
+  combined_grid <- plot_grid(
+    top_grid, 
+    efficacy_grid,
+    nrow = 2,  # Stack vertically
+    align = 'v',  # Vertical alignment
+    axis = 'lr',  # Align left-right axes
+    rel_heights = c(1.1, 1),  # Adjust relative heights as needed
+    greedy = FALSE
+  ) + theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"))
+  
+  # Save the combined grid
+  combined_filename <- if(group_var == "DrugClass") {
+    "Combined_AGDS_by_DrugClass.png"
+  } else {
+    "Combined_AGDS_by_DrugName.png"
+  }
+  
+  png(
+    filename = file.path(outdir, combined_filename),
+    width = 350, height = 350, units = 'mm',  # Increased height for combined plot
+    bg = "white", res = 600, type = c("cairo")
+  )
+  print(combined_grid)
+  dev.off()
+  
   return(list(
     main_figure = top_grid, 
     efficacy_figure = efficacy_grid, 
-    patterns_figure = patterns_grid
+    patterns_figure = patterns_grid,
+    combined_figure = combined_grid
   ))
 }
 

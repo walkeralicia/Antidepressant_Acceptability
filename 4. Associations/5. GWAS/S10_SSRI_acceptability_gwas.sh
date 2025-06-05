@@ -1,6 +1,8 @@
 
 #---- Create a covariate and phenotype file
 R
+library(dplyr)
+library(openxlsx)
 
 # Load required libraries
 fam <- read.table("/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink/imputed_chr1.fam", header=FALSE)
@@ -8,7 +10,7 @@ fam <- read.table("/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink/imputed_chr
 # Define file paths
 PC_FILE <- "/QRISdata/Q5338/Ancestry_analysis/AGDS_R11_TOPMedr2_pruned.05.common_pca3.proj.eigenvec"
 DEMO_FILE <- "/QRISdata/Q7280/pharmacogenomics/phenotypes/BMI_age_sex.csv"
-TREATMENT_FILE <- "/scratch/user/uqawal15/Final_Treatmentgroups_360days.csv"
+TREATMENT_FILE <- "/QRISdata/Q7280/pharmacogenomics/treatment_groups/Final_Treatmentgroups_360days.csv"
 PRESCRIPTION_FILE <- "/QRISdata/Q7280/pharmacogenomics/data/AGDSAcceptabilityTreatmentGroups_14122024.csv"
 OUTPUT_DIR <- "/scratch/user/uqawal15"
 
@@ -51,9 +53,9 @@ unique()
 
 # Second option (Non-responders: Anyone not in SSRI without comorbid BIP and >= 360 SSRI dispense)
 
-# Identify participants not in SSRI, BIP, or BIP+L groups
+# Identify participants not in SSRI, BIP-L, or BIP+L groups
 remaining <- groups %>% 
-  filter(!(DrugClass %in% c("SSRI") | DrugName %in% c("BIP", "BIP+L")))
+  filter(!(DrugClass %in% c("SSRI") | DrugName %in% c("BIP-L", "BIP+L")))
 
 # Filter drugs to include only those from the remaining participants
 drugs_incl <- drugs %>% 
@@ -69,10 +71,10 @@ cleaned_data <- drugs_incl %>%
   filter(!ParticipantID %in% long_term_users$ParticipantID)
 
 # Create SSRI responder phenotype
-# 0 = SSRI responder, 1 = non-responder (brief SSRI use), NA = not applicable
+# 1 = SSRI responder, 0 = non-responder (brief SSRI use), NA = not applicable
 groups$SSRI_Responder <- ifelse(
-  groups$ParticipantID %in% cleaned_data$ParticipantID, 1,
-  ifelse(groups$DrugClass == "SSRI", 0, NA)
+  groups$ParticipantID %in% cleaned_data$ParticipantID, 0,
+  ifelse(groups$DrugClass == "SSRI", 1, NA)
 )
 
 # Combine all datasets and create third phenotype (SSRIs vs SNRIs)
@@ -110,7 +112,7 @@ dat %>%
   )
 
 
-#--------------- Run SSRI vs any AD non-responder GWAS using PLINK2 (common variants)
+#--------------- Run SSRI responder vs SSRI non-responder GWAS using PLINK2 (common variants)
 
 #!/bin/bash
 #SBATCH --nodes=1
@@ -148,7 +150,7 @@ plink2 \
 
 
 
-#--------------- Run SSRI vs non-SSRI responder GWAS using PLINK2 (common variants)
+#--------------- Run ATC Class Diversity GWAS using PLINK2 (common variants)
 
 #!/bin/bash
 #SBATCH --nodes=1
@@ -267,7 +269,13 @@ echo "Done! Results saved."
 
 #################################################################
 
+# load libraries
+library(data.table)
+library(qqman)
+library(dplyr
+
 # genomic inflation factor (lambda) function
+
 calculate_lambda <- function(pvals) {
   # Convert p-values to chi-square statistics (1 df)
   chisq_stats <- qchisq(1 - pvals, df = 1)
@@ -279,12 +287,7 @@ calculate_lambda <- function(pvals) {
 }
 
 
-#-- Plot AGDS SSRI vs SNRI gwas results
-```{r}
-# load libraries
-library(data.table)
-library(qqman)
-library(dplyr)
+#-- Plot AGDS SSRI vs SNRI gwas results)
 
 # Path to your GWAS results
 input_file <- "/scratch/user/uqawal15/SSRI_SNRI_gwas_concat.txt"
@@ -363,12 +366,9 @@ library(dplyr)
 # Path to your GWAS results
 input_file <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder_gwas_concat.txt"
 freq <- fread("/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder_afreq_concat.txt", fill = TRUE)
-freq_select <- freq %>%
-select(ID, ALT_FREQS)
-output_dir <- "/scratch/user/uqawal15/"
+output_dir <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS"
 
-gwas <- fread(input_file, 
-              fill = TRUE)
+gwas <- fread(input_file, fill = TRUE)
               
 gwas_cleaned <- gwas %>%
   mutate(P = as.numeric(P)) %>%
@@ -411,26 +411,55 @@ sig <- gwas_cleaned %>%
 filter(P < 0.000005) %>%
 arrange(P)
 
-sig_freq <- inner_join(sig, freq_select, by = "ID") 
-sig_freq2 <- sig_freq %>%
+#-- Join allele frequency information to GWAS sumstats
+sig_freq <- sig %>%
+  left_join(freq, by = c("#CHROM", "ID", "REF", "ALT"))
+  
+#-- Fix format of summary statistics
+gwas_flipped <- sig_freq %>%
+  mutate(
+    # Identify rows to flip
+    flip = REF != A1,
+    
+    # Flip A1 allele
+    A1_new = case_when(
+      flip & A1 == ALT ~ REF,
+      flip & A1 == REF ~ ALT,
+      TRUE ~ A1
+    ),
+    
+    # Update statistics for flipped SNPs
+    ALT_FREQS_new = ifelse(flip, 1 - ALT_FREQS, ALT_FREQS),
+    OR_new = ifelse(flip, 1/OR, OR),
+    Z_STAT_new = ifelse(flip, -Z_STAT, Z_STAT)
+  ) %>%
+  # Replace original columns
+  mutate(
+    A1 = A1_new,
+    ALT_FREQS = ALT_FREQS_new,
+    OR = OR_new,
+    Z_STAT = Z_STAT_new
+  ) %>%
+  # Remove helper columns
+  select(-flip, -A1_new, -ALT_FREQS_new, -OR_new, -Z_STAT_new)
+
+gwas_final <- gwas_flipped %>%
     mutate_at(vars(`LOG(OR)_SE`, P, ALT_FREQS), ~ signif(., 2)) %>%
-    mutate_at(vars(OR, Z_STAT), ~ round(., 2))
+    mutate_at(vars(OR, Z_STAT), ~ round(., 2)) %>%
+    select(`#CHROM`, POS, ID, REF, ALT, A1, OR, `LOG(OR)_SE`, Z_STAT, P, ALT_FREQS)
+    
 wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
-removeWorksheet(wb, "Table16")
-addWorksheet(wb, "Table16")
-writeData(wb, "Table16", sig_freq2)
+removeWorksheet(wb, "Table17")
+addWorksheet(wb, "Table17")
+writeData(wb, "Table17", gwas_final)
 saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
 
 
-fwrite(sig_freq, file.path(output_dir, "SSRI_Acceptability_gwas_top_hits.txt"))
+fwrite(gwas_final, file.path(output_dir, "SSRI_Acceptability_gwas_top_hits.txt"))
 
-# All within LY9 gene
-sig <- gwas_cleaned %>%
-filter(P < 0.0000005) %>%
-arrange(P)
 
 # Lambda
-lambda <- calculate_lambda(gwas_cleaned$P) # 1.006742
+lambda <- calculate_lambda(gwas_cleaned$P) # 1.006737
 
 
 ###################################################################

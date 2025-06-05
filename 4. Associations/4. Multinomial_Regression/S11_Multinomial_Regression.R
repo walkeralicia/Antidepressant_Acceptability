@@ -282,8 +282,8 @@ df_all <- df_all %>%
 
 
 wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
-addWorksheet(wb, "Table17")
-writeData(wb, "Table17", df_all)
+addWorksheet(wb, "Table18")
+writeData(wb, "Table18", df_all)
 saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
 
 
