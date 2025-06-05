@@ -8,8 +8,20 @@ custom_colors <- c("No" = "black",
 #-- Antidepressant Treatment Class Level analysis
 
 #-- BMI unadjusted
-bmi_unadj <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\All_Results.xlsx", sheet = 8)
+bmi_unadj <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table10")
 bmi_unadj <- bmi_unadj %>%
+  rename(
+    Threshold = threshold, 
+    ReferenceTerm = reference_term, 
+    Outcome = outcome, 
+    Term = term, 
+    Estimate = estimate, 
+    `Std..Error` = std.error,
+    `t.value` = statistic,
+    `Pr...t..` = p.value,
+    Sig_FDR = sig_fdr,
+    Sig_Bonf = sig_bonf
+  ) %>%
   fill(Outcome, Threshold, ReferenceTerm, .direction = "down") %>% 
   filter(Term != "AGE" & Term != "SEX") %>%
   filter(Threshold == "360 days") %>%
@@ -20,7 +32,7 @@ bmi_unadj <- bmi_unadj %>%
   filter(Term != "SSRI")
 
 #-- BMI adjusted by BMI PGS
-bmi_adj <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\All_Results.xlsx", sheet = 12)
+bmi_adj <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table14")
 bmi_adj <- bmi_adj %>%
   fill(Outcome, Threshold, ReferenceTerm, .direction = "down") %>% 
   filter(Term != "sd_pgs" & Term != "(Intercept)") %>%
@@ -28,6 +40,7 @@ bmi_adj <- bmi_adj %>%
   filter(Threshold == "360 days") %>%
   filter(Outcome == "BMI") %>%
   filter(ReferenceTerm == "SSRI") %>%
+  filter(Term != "SSRI") %>%
   select(Outcome, ReferenceTerm, Term, Estimate, `Std..Error`, `t.value`, `Pr...t..`, Sig_FDR, Sig_Bonf) %>%
   mutate(Adjusted = "Yes")
 
@@ -46,7 +59,7 @@ main_p <- ggplot(dat, aes(x = Term, y = Estimate, group = Adjusted, color = Adju
                 linewidth = 0.5, width = 0) +
   geom_hline(yintercept = 0, linetype = "longdash", linewidth = 0.5, color = "#333333") +
   xlab("Antidepressant Class") +
-  ylab(expression(atop("BMI (SSRI as reference)", paste("(", pm, " 95% CI)")))) +
+  ylab("BMI calculated from self-reported\nheight and weight\n(SSRI as reference)") +
   labs(color = "Covariate\nBMI PGS") +
   scale_color_manual(values = custom_colors) +
   theme_classic() +
@@ -67,18 +80,18 @@ main_p
 
 main_p_expanded <- main_p + 
   # Increase right margin - adjust the value (currently 3cm) as needed
-  theme(plot.margin = margin(5, 200, 5, 40, "pt"))  # top, right, bottom, left
+  theme(plot.margin = margin(5, 150, 5, 40, "pt"))  # top, right, bottom, left
 
 combined_plot <- plot_grid(
   p, main_p_expanded,
   ncol = 1,
   labels = c("A", "B"),
-  rel_heights = c(2, 1.1)
+  rel_heights = c(2, 1.2)
 )
 
 combined_plot
 
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\4. Associations\\2. PGS\\Results\\AGDS_MF_PGS_plots.png", 
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\2. PGS\\Results\\AGDS_MF_PGS_plots.png", 
        plot = combined_plot, device = "png", width = 230, height = 200, units = "mm", dpi=600)
 
 #####################################################

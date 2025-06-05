@@ -132,7 +132,8 @@ process_results_optimized <- function(df) {
     ) %>%
     ungroup() %>%
     mutate(
-      across(c(`Pr...t..`, `Std..Error`, FDR_P, Bonf_P), ~ signif(.x, 2)),
+      across(c(`Pr...t..`, FDR_P, Bonf_P), ~ format(signif(.x, 2), scientific = TRUE)),
+      across(c(`Std..Error`), ~ signif(.x, 2)),
       across(c(Estimate, `t.value`), ~ round(.x, 2))
     ) %>%
     select(Threshold, ReferenceTerm, Outcome, Term, Estimate, `Std..Error`, 

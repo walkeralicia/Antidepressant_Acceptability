@@ -292,7 +292,8 @@ process_results_for_excel <- function(df, data_type) {
   
   results <- df %>%
     left_join(total_n, by = "Dependent") %>%
-    mutate(across(c(pValue, OR, LCI, UCI, FDR_P, Bonf_P), ~ signif(.x, 2))) %>%
+    mutate(across(c(OR, LCI, UCI), ~ signif(.x, 2)),
+           across(c(pValue, FDR_P, Bonf_P), ~ format(signif(.x, 2), scientific = TRUE))) %>%
     select(Threshold, Reference, Dependent, Term, OR, LCI, UCI, pValue, 
            FDR_P, Bonf_P, Sig_FDR, Sig_Bonf, Total_N, all_of(available_n_cols)) %>%
     arrange(Threshold, Reference, Dependent, Term) %>%
@@ -315,13 +316,13 @@ wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
 
 # Process class results
 class_results <- process_results_for_excel(class_EX_glm, "class")
-#removeWorksheet(wb, "Table8")
+removeWorksheet(wb, "Table8")
 addWorksheet(wb, "Table8")
 writeData(wb, "Table8", class_results)
 
 # Process drug results  
 drug_results <- process_results_for_excel(EX_glm, "drug")
-#removeWorksheet(wb, "Table9")
+removeWorksheet(wb, "Table9")
 addWorksheet(wb, "Table9")
 writeData(wb, "Table9", drug_results)
 

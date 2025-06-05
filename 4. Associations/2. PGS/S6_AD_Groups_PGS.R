@@ -218,8 +218,9 @@ process_and_add_to_workbook <- function(data_type) {
   results <- df %>%
     left_join(terms, by = c("Threshold", "Reference", "PGS", "Term")) %>%
     arrange(Threshold, Reference, PGS, Term) %>%
-    mutate(across(c(P.value, Std..Error, FDR_P, Bonf_P), ~signif(., 2)),
-           across(c(estimate, t.value), ~round(., 2))) %>%
+    mutate(across(c(P.value, FDR_P, Bonf_P), ~format(signif(.x, 2), scientific = TRUE)),
+           across(c(estimate, t.value), ~round(., 3)),
+           across(c(Std..Error), ~signif(., 2))) %>%
     select(Threshold, Reference, PGS, Term, estimate, Std..Error, t.value, 
            P.value, FDR_P, Bonf_P, Sig_FDR, Sig_Bonf, Total_N, Group_N)
   

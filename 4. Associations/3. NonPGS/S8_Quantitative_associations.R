@@ -262,7 +262,8 @@ format_results_optimized <- function(results, ref_term) {
   formatted <- results_with_adj %>%
     left_join(total_n, by = c("threshold", "outcome")) %>%
     mutate(
-      across(c(p.value, std.error, fdr_p, bonf_p), ~ signif(.x, 2)),
+      across(c(p.value, fdr_p, bonf_p), ~ format(signif(.x, 2), scientific = TRUE)),
+      across(c(std.error), ~ signif(.x, 2)),
       across(c(estimate, statistic), ~ round(.x, 2))
     ) %>%
     select(threshold, reference_term, outcome, term, estimate, std.error, 
@@ -308,6 +309,7 @@ wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
 if (!is.null(class_formatted)) {
   class_renamed <- class_formatted %>%
     mutate(outcome = recode(outcome, !!!rename_mapping))
+  removeWorksheet(wb, "Table10")
   addWorksheet(wb, "Table10")
   writeData(wb, "Table10", class_renamed)
 }
@@ -316,6 +318,7 @@ if (!is.null(class_formatted)) {
 if (!is.null(drug_formatted)) {
   drug_renamed <- drug_formatted %>%
     mutate(outcome = recode(outcome, !!!rename_mapping))
+  removeWorksheet(wb, "Table11")
   addWorksheet(wb, "Table11")
   writeData(wb, "Table11", drug_renamed)
 }

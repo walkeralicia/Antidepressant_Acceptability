@@ -5,11 +5,13 @@ library(ggplot2)
 library(cowplot)
 library(stringr)
 library(patchwork)
+library(readxl)
+library(tidyr)
 
 #=================== Scaled Quantitative Features =========================================
 
 #-- Read in results in which the dependent variable is quantitative
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\All_results.xlsx", sheet = "Table10")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table10")
 
 #-- Drug order
 drug_order <- c("SNRI", "TeCA", "TCA", "BIP+L", "BIP-L", "Various")
@@ -29,7 +31,7 @@ dat_ssri <- dat_filled %>%
 
 #-- Incorporate Number of Participants for each Outcome Variable in the association
 dat_labeled <- dat_ssri %>%
-  mutate(Label = paste0(outcome, " (N=", total_n, ")"))
+  mutate(Label = paste0(outcome, " (", total_n, ")"))
 
 #-- Label for FDR or Bonferroni significance
 dat_labeled <- dat_labeled %>%
@@ -43,22 +45,22 @@ dat_labeled <- dat_labeled %>%
 
 #-- Order Dependent Variables
 dat_reordered <- dat_labeled %>%
-  mutate(Outcome_label = factor(Label, levels = c("Total Prescription Dispense (N=6102)", 
-                                            "Average Prescription Episode Length (N=6102)",
-                                            "Number of Prescription Episodes (N=6102)", 
-                                            "Number of Unique Antidepressants (N=6102)",
-                                            "Number of Unique AD Class (N=6102)",
-                                            "Age of MDD Onset (N=9249)",
-                                            "Times 2-Weeks of MDD (N=9219)",
-                                            "Education Level (N=10117)",
-                                            "Physical health (N=9008)")))
+  mutate(Outcome_label = factor(Label, levels = c("Total Prescription Dispense (6102)", 
+                                            "Average Prescription Episode Length (6102)",
+                                            "Number of Prescription Episodes (6102)", 
+                                            "Number of Unique Antidepressants (6102)",
+                                            "Number of Unique AD Class (6102)",
+                                            "Age of MDD Onset (8976)",
+                                            "Times 2-Weeks of MDD (8948)",
+                                            "Education Level (9817)",
+                                            "Physical health (8746)")))
 
 
 #-- Put the Dependent Variables into Two Categories
 dat_category <- dat_reordered %>%
   mutate(
     Category = ifelse(Outcome_label %in% 
-                        c("Age of MDD Onset (N=9249)", "Times 2-Weeks of MDD (N=9219)", "Education Level (N=10117)", "Physical health (N=9008)"), "Clinical","Pharmaceutical Metrics")
+                        c("Age of MDD Onset (8976)", "Times 2-Weeks of MDD (8948)", "Education Level (9817)", "Physical health (8746)"), "Clinical","Pharmaceutical Metrics")
   )
 
 
@@ -143,7 +145,7 @@ dat_ssri <- dat_filled %>%
 
 #-- Incorporate Number of Participants for each Outcome Variable in the association
 dat_labeled <- dat_ssri %>%
-  mutate(Label = paste0(outcome, " (N=", total_n, ")"))
+  mutate(Label = paste0(outcome, " (", total_n, ")"))
 
 #-- Label for FDR or Bonferroni significance
 dat_labeled <- dat_labeled %>%
@@ -157,8 +159,8 @@ dat_labeled <- dat_labeled %>%
 
 #-- Order Outcome Variables
 dat_reordered <- dat_labeled %>%
-  mutate(Label = factor(Label, levels = c("Age (N=10129)", 
-                                          "BMI (N=9601)")))
+  mutate(Label = factor(Label, levels = c("Age (9829)", 
+                                          "BMI (9316)")))
 
 #-- Process the data for the heatmap
 heatmap_data_unscaled <- dat_reordered %>%
@@ -243,7 +245,7 @@ library(ggplot2)
 library(tidyr)
 
 #-- Load in data
-dat_bin <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\All_results.xlsx", sheet = "Table8")
+dat_bin <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table8")
 
 #-- Fill in NA
 dat_filled <- dat_bin %>%
@@ -259,10 +261,30 @@ dat_ssri <- dat_filled %>%
            Term != "SSRI" & 
            Reference == "SSRI", 
          Threshold == 360)
+  
+cases <- dat_ssri %>%
+  group_by(Dependent) %>%
+  summarise(
+    Total_Controls = sum(Class_N_0),
+    Total_Cases = sum(Class_N_1)
+  ) %>%
+  mutate(
+    Case_perc = round((Total_Cases/(Total_Cases + Total_Controls)*100),0)
+  )
+
+dat_ssri <- dat_ssri %>%
+  left_join(cases, by = "Dependent")
 
 #-- Incorporate Number of Participants for each Outcome Variable in the association
 dat_labeled <- dat_ssri %>%
-  mutate(Label = paste0(Dependent, " (N=", Total_N, ")"))
+  mutate(
+    Dependent = ifelse(Dependent == "Migraines or Headaches", "Migraines", 
+                       ifelse(Dependent == "Chronic Fatigue Syndrome", "CFS", 
+                              ifelse(Dependent == "Premenstrual Dysphoric Disorder", "PMDD",
+                                     ifelse(Dependent == "Obsessive-compulsive Disorder", "OCD",
+                                            ifelse(Dependent == "Seasonal Affective Disorder", "SAD", Dependent)))))
+  ) %>% 
+  mutate(Label = paste0(Dependent, " (", Total_N, ";", Case_perc,  "%)"))
 
 #-- Label for FDR or Bonferroni significance
 dat_labeled <- dat_labeled %>%
@@ -287,22 +309,22 @@ dat_category <- dat_labeled %>%
                       ifelse(Dependent %in% 
                                c("Type 2 Diabetes", 
                                  "Stomach Ulcers",
-                                 "Migraines or Headaches",
+                                 "Migraines",
                                  "Back pain",
                                  "Chronic pain",
-                                 "Chronic Fatigue Syndrome",
+                                 "CFS",
                                  "Epilepsy",
                                  "Endometriosis",
                                  "Fibroids (uterus)",
                                  "PCOS"), "Physical", 
                              ifelse(Dependent %in% 
-                                      c("Premenstrual Dysphoric Disorder",
+                                      c("PMDD",
                                         "Anxiety Disorder",
                                         "Personality Disorder",
                                         "Substance Use Disorder",
                                         "ADHD",
-                                        "Obsessive-compulsive Disorder",
-                                        "Seasonal Affective Disorder"), "Psychiatric", "Worst Episode Symptom")))
+                                        "OCD",
+                                        "SAD"), "Psychiatric", "Worst Episode Symptom")))
   )
 
 #-- Process the data for the heatmap
@@ -344,13 +366,13 @@ main_plot <- ggplot(heatmap_data, aes(x = Term, y = Label, fill = OR)) +
 final_plot <- plot_grid(
   combined_plot, main_plot,
   ncol = 2,
-  rel_widths = c(1, 1.4),
+  rel_widths = c(1, 1.25),
   labels = c("", "B")
 )
 
 final_plot
 
 
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Pharmacogenomics\\4. Associations\\3. NonPGS\\Results\\Figures\\Class_Heatmap.png", 
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\3. NonPGS\\Results\\Figures\\Class_Heatmap.png", 
        plot = final_plot, device = "png", width = 250, height = 250, units = "mm", dpi=1000)
 
