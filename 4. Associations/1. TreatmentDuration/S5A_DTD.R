@@ -101,7 +101,7 @@ pharma_full <- pharma_full %>%
 #-- Define independent variables
 independent <- c("AGE", "SEX", "AGE2WKF", "Recurrent",
                  "BMI", "SUICIDEA", "SELFHARM", "EDU", "PHYSHLTH", "REGSMK", "DRK3FRQ",
-                 "TYPE11B", "TYPE33C","DXPDMD", "DXANX", "DXPERSD", "DXBPD2", "DXSUD", "DXADHD", "DXOCD", "DXSAD", 
+                 "TYPE11B", "TYPE33C","DXPDMD", "DXANX", "DXPERSD", "DXBPD2", "DXSUD", "DXADHD", "DXOCD", "DXSAD", "DXANOR", "DXSCZ",
                  "DXPHYS3", "DXPHYS6", "DXPHYS12", "DXPHYS34", "MIGEVR", "DXENDO", "DXFIBRO", "DXPCOS",
                  "LOWINT2W", "DEP2WK", "FATIGUED.x", "GUILTY", "NOFOCUS", "DEATHTHK", "APWTCHANGE", "SLEEP", "MOVEMENT")
 
@@ -405,6 +405,8 @@ rename_mapping <- c(
   "DXANX" = "Anxiety Disorder",
   "DXPERSD" = "Personality Disorder",
   "DXBPD2" = "Bipolar Disorder",
+  "DXSCZ" = "Schizophrenia",
+  "DXANOR" = "Anorexia Nervosa",
   "DXSUD" = "Substance Use Disorder",
   "DXADHD" = "ADHD",
   "DXOCD" = "Obsessive-compulsive Disorder",

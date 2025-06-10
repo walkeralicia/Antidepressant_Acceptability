@@ -104,6 +104,19 @@ ${path2gctb}/gctb \
 --out  ${workingpath}/${trait}/SBayesRC/${gwas_file}_imp.ma.imputed_sbrc_gctb
 
 
+#-- Run COJO
+
+/QRISdata/Q6913/Pipeline/ukbEUR_Imputed/
+
+cojo_sub=`qsubshcom "gcta-1.94.1  \
+--bfile   UKB_20k/PLINK/ukbEURu_imp_chr{TASK_ID}_v3_impQC_20k \
+--chr   {TASK_ID} \
+--cojo-file   ${trait}/${gwas_file}.ma  \
+--cojo-slct  \
+--out  ${trait}/COJO/${trait}_chr{TASK_ID}_cojo  "  10 150G "COJO"  24:00:00 "  -wait=$formatqsub  -array=1-22 "   `
+
+
+
 ######################## BMI #################################
 
 #-- COJO format

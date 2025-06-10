@@ -47,7 +47,7 @@ processed_data <- processed_data %>%
       Independent %in% c("Type 2 Diabetes", "Stomach Ulcers", "Back pain", "Chronic pain", 
                          "Migraines or Headaches", "Endometriosis", "Fibroids (uterus)", 
                          "PCOS", "Chronic Fatigue Syndrome", "Epilepsy") ~ "Physical",
-      Independent %in% c("Anxiety Disorder", "Bipolar Disorder", "Personality Disorder", 
+      Independent %in% c("Anxiety Disorder", "Bipolar Disorder", "Schizophrenia", "Anorexia Nervosa", "Personality Disorder", 
                          "Substance Use Disorder", "ADHD", "Obsessive-compulsive Disorder",
                          "Seasonal Affective Disorder", "Chronic pain", 
                          "Premenstrual Dysphoric Disorder") ~ "Neuropsychiatric",

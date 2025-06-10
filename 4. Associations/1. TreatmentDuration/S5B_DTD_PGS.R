@@ -54,7 +54,7 @@ pharma_full <- pharma_full %>%
 
 # -- Genetic data
 pgslist <- system('find /QRISdata/Q7280/pharmacogenomics/pgs -name "*agds_sbrc_gctb_plink2.sscore" -type f -exec ls {} \\;', intern = TRUE)
-pgs_codes <- c("PUD_01", "T2D_03", "CNT_03", "ADHD_01", "BIP_LOO", "BMI_LOO", "MDD_LOO", "MDD_07_hsa04726", "SCZ_02", "Migraine_01", "SBP_01", "ANX_LOO", "ANO_LOO", "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "OCD_2024", "Neuroticism_01", "LRA_01")
+pgs_codes <- c("PUD_01", "T2D_03", "CNT_03", "ADHD_01", "BIP_LOO", "BMI_LOO", "MDD_LOO", "SCZ_02", "Migraine_01", "SBP_01", "ANX_LOO", "ANO_LOO", "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "OCD_2024", "Neuroticism_01", "LRA_01")
 num <- length(pgs_codes)
 selected_pgs <- pgslist[grep(paste(pgs_codes, collapse = "|"), pgslist)]
 
@@ -80,7 +80,6 @@ numClass_lm_list <- list()
 # -- For each PGS trait fit a linear model with treatment group as the independent variable
 for (j in 1:length(selected_pgs)) {
   
-  if (j != 16) {
     # -- Read in PGS file for the selected trait
     pgs_file_path <- selected_pgs[j]
     pgs <- read_table(selected_pgs[j], col_names = TRUE)
@@ -104,31 +103,6 @@ for (j in 1:length(selected_pgs)) {
     # -- Join PGS file with ad treatment group data
     pharma_link <- inner_join(link, pharma_full, by = "ParticipantID")
     pgs_atc <- inner_join(pharma_link, pgs_e, by = c("IID" = "IID"))
-  } else {
-    
-    # -- Read in PGS file for the selected trait
-    pgs_file_path <- selected_pgs[j]
-    pgs <- read_table(selected_pgs[j])
-    
-    # -- Extract PGS trait name
-    pgs_filename <- basename(pgs_file_path)
-    trait_parts <- unlist(strsplit(unlist(strsplit(pgs_filename, "\\."))[1], "_"))
-    trait <- paste0(trait_parts[1], "_", trait_parts[2], "_", trait_parts[3])
-    cat(trait, j, '\n')
-    
-    # -- Filter PGS for Europeans (loss of 806 individuals)
-    ids_to_keep <- as.character(eur$X2)
-    pgs_e <- pgs %>% 
-      filter(IID %in% ids_to_keep)
-    
-    # -- Standardize PGS
-    pgs_e <- pgs_e %>%
-      mutate(std_pgs = scale(SCORESUM)[,1])
-    
-    # -- Join PGS file with ad treatment group data
-    pharma_link <- inner_join(link, pharma_full, by = "ParticipantID")
-    pgs_atc <- inner_join(pharma_link, pgs_e, by = "IID")
-  }
   
   #======= Analysis 1: Total Prescription Days
   
@@ -213,7 +187,6 @@ pgs_rename_mapping <- c(
   "BMI_LOO" = "BMI",
   "CNT_03" = "Chronotype",
   "CRP_01" = "C-reactive protein",
-  "MDD_07_hsa04726" = "Depression KEGG:hsa04726",
   "MDD_LOO" = "Depression",
   "Migraine_01" = "Migraine",
   "Neuroticism_01" = "Neuroticism",

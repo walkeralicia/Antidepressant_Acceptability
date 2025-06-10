@@ -27,7 +27,7 @@ dat_ssri <- dat_filled %>%
         Reference == "SSRI", 
          Threshold == "360 days")
 
-dat_ssri$PGS <- factor(dat_ssri$PGS, levels = rev(c("MDD", "MDDhsa04726", "BIP", "SCZ", "ADHD", "ANO", "ANX", "OCD", "Neuroticism",
+dat_ssri$PGS <- factor(dat_ssri$PGS, levels = rev(c("MDD", "BIP", "SCZ", "ADHD", "ANO", "ANX", "OCD", "Neuroticism",
                                                 "BMI", "T2D", "SBP", "CNT", "LRA", "Migraine", "PUD", "CRP", "LDL-c")))
 dat_ssri$Term <- factor(dat_ssri$Term, levels = drug_order)
                        
@@ -79,7 +79,7 @@ p <- ggplot(dat_ssri, aes(y = PGS, x = estimate, color = P.value)) +
     strip.background = element_rect(fill = "white"),
     strip.text = element_text(color = "black", face="bold"),
     axis.text.x = element_text(color = "black"),
-    axis.text.y = element_text(color = "black"),
+    axis.text.y = element_text(color = "black", size = 12),
     axis.title.x = element_text(face = "bold"),
     axis.title.y = element_text(face = "bold"),
     legend.position = "right",
@@ -120,7 +120,7 @@ dat_ssri <- dat_filled %>%
   filter(Term != "SSRI:Sertraline" & 
            Reference== "SSRI:Sertraline")
 
-dat_ssri$PGS <- factor(dat_ssri$PGS, levels = rev(c("MDD", "MDDhsa04726", "BIP", "SCZ", "ADHD", "ANO", "ANX", "OCD", "Neuroticism",
+dat_ssri$PGS <- factor(dat_ssri$PGS, levels = rev(c("MDD", "BIP", "SCZ", "ADHD", "ANO", "ANX", "OCD", "Neuroticism",
                                                     "BMI", "T2D", "SBP", "CNT", "LRA", "Migraine", "PUD", "CRP", "LDL-c")))
 dat_ssri$Term <- factor(dat_ssri$Term, levels = rev(c( "Various", "Combination", "BIP-L", "BIP+L", "TeCA:Mirtazapine", "TCA:Amitriptyline", "SNRI:Duloxetine", "SNRI:Desvenlafaxine", "SNRI:Venlafaxine", "SSRI:Paroxetine", "SSRI:Fluoxetine", "SSRI:Escitalopram", "SSRI:Citalopram")))
 dat_ssri$Threshold <- factor(dat_ssri$Threshold, levels = c("360 days", "600 days"))

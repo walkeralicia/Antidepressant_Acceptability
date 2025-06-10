@@ -19,7 +19,7 @@ output_dir <- "/scratch/user/uqawal15"
 # -- Define independent variables
 exposome_binary <- c("SEX","WELLAD", "STOPAD", # clinical characteristics
                      "SUICIDEA", "REGSMK", # risk factors
-                     "TYPE11B", "TYPE33C", "DXPDMD", "DXANX", "DXPERSD", "DXSUD", "DXADHD", "DXOCD", "DXSAD","DXPHYS3", 
+                     "TYPE11B", "TYPE33C", "DXPDMD", "DXANX", "DXPERSD", "DXSUD", "DXADHD", "DXOCD", "DXSAD","DXPHYS3", "DXANOR", "DXSCZ",
                      "DXPHYS6", "DXPHYS12", "DXPHYS34", "MIGEVR", "DXFIBRO", "DXPCOS", "DXENDO", # comorbidities
                      "LOWINT2W", "DEP2WK", "FATIGUED.x", "GUILTY", "NOFOCUS", "DEATHTHK", "APWTCHANGE", "SLEEP", "MOVEMENT") # mdd symptoms
 
@@ -222,6 +222,8 @@ rename_mapping <- c(
   "DXANX" = "Anxiety Disorder",
   "DXPERSD" = "Personality Disorder",
   "DXBPD2" = "Bipolar Disorder",
+  "DXSCZ" = "Schizophrenia",
+  "DXANOR" = "Anorexia Nervosa",
   "DXSUD" = "Substance Use Disorder",
   "DXADHD" = "ADHD",
   "DXOCD" = "Obsessive-compulsive Disorder",

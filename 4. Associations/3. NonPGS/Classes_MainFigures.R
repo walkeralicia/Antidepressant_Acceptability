@@ -324,7 +324,9 @@ dat_category <- dat_labeled %>%
                                         "Substance Use Disorder",
                                         "ADHD",
                                         "OCD",
-                                        "SAD"), "Psychiatric", "Worst Episode Symptom")))
+                                        "SAD", 
+                                        "Schizophrenia", 
+                                        "Anorexia Nervosa"), "Psychiatric", "Worst Episode Symptom")))
   )
 
 #-- Process the data for the heatmap

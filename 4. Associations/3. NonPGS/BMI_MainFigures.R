@@ -1,6 +1,7 @@
 
 library(ggplot2)
 library(dplyr)
+library(readxl)
 
 custom_colors <- c("No" = "black",
                    "Yes" = "#2C7FB8")
@@ -45,7 +46,14 @@ bmi_adj <- bmi_adj %>%
   mutate(Adjusted = "Yes")
 
 #-- Combine BMI adjusted and unadjusted analysis into one dataframe
-dat <- rbind(bmi_adj, bmi_unadj)
+dat <- rbind(bmi_adj, bmi_unadj) %>%
+  mutate(
+    Sig_label = case_when(
+      Sig_Bonf == "*" ~ "**",
+      Sig_FDR == "*" & is.na(Sig_Bonf) ~ "*",
+      TRUE ~ NA
+    )
+  ) 
 
 #-- Prepare data for plotting
 dat$Term <- factor(dat$Term, levels = rev(c( "Various","BIP-L" ,"BIP+L", "TeCA", "TCA", "SNRI")))
@@ -65,11 +73,16 @@ main_p <- ggplot(dat, aes(x = Term, y = Estimate, group = Adjusted, color = Adju
   theme_classic() +
   theme(
     axis.text.y = element_text(color = "black"),
-    axis.text.x = element_text(color = "black", face = "bold"),
+    axis.text.x = element_text(color = "black", face = "bold", size = 12),
     legend.position = "right", 
     legend.title = element_text(face = "bold"),
     axis.title = element_text(face = "bold")
-  )
+  ) +
+  geom_text(aes(label = Sig_label, 
+                x = Term, 
+                y = (Estimate + (1.96 * `Std..Error`) + 0.01)), 
+            size = 6, color = "black", 
+            position = position_dodge(width = dodge_width)) 
 
 main_p
 
@@ -86,13 +99,13 @@ combined_plot <- plot_grid(
   p, main_p_expanded,
   ncol = 1,
   labels = c("A", "B"),
-  rel_heights = c(2, 1.2)
+  rel_heights = c(2, 1.4)
 )
 
 combined_plot
 
 ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\2. PGS\\Results\\AGDS_MF_PGS_plots.png", 
-       plot = combined_plot, device = "png", width = 230, height = 200, units = "mm", dpi=600)
+       plot = combined_plot, device = "png", width = 230, height = 230, units = "mm", dpi=600)
 
 #####################################################
 

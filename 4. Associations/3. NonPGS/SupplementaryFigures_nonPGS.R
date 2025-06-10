@@ -293,6 +293,8 @@ variable_order <- c("Type 2 Diabetes",
                     "PDMD",
                     "Anxiety Disorder",
                     "Personality Disorder",
+                    "Schizophrenia",
+                    "Anorexia Nervosa",
                     "Substance Use Disorder",
                     "ADHD",
                     "Obsessive-compulsive Disorder",
@@ -344,7 +346,7 @@ p <- ggplot(dat_labeled, aes(x = Term, y = OR, group = Threshold, colour = Thres
                 y = UCI + 0.01), 
             size = 10, color = "black", 
             position = position_dodge(width = dodge_width)) +  
-  facet_wrap(~Dependent, nrow = 6, scales = "free_y") +
+  facet_wrap(~Dependent, nrow = 7, scales = "free_y") +
   xlab("Treatment group") +
   ylab("Odds Ratio (95% CI) with Sertraline as Reference") +
   theme_bw(base_size = 27) +

@@ -16,14 +16,13 @@ eur_ids <- as.character(eur$X2)
 
 # -- Find PGS files
 pgs_codes <- c("PUD_01", "T2D_03", "CNT_03", "ADHD_01", "BIP_LOO", "BMI_LOO", "MDD_LOO", 
-               "MDD_07_hsa04726", "SCZ_02", "Migraine_01", "SBP_01", "ANX_LOO", "ANO_LOO", 
+               "SCZ_02", "Migraine_01", "SBP_01", "ANX_LOO", "ANO_LOO", 
                "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "OCD_2024", "Neuroticism_01", "LRA_01")
 pgslist <- system('find /QRISdata/Q7280/pharmacogenomics/pgs -name "*agds_sbrc_gctb_plink2.sscore" -type f -exec ls {} \\;', intern = TRUE)
 selected_pgs <- pgslist[grep(paste(pgs_codes, collapse = "|"), pgslist)]
 
 # -- Functions for processing PGS files
 read_pgs_file <- function(file_path, j) {
-  if (j != 16) {
     # Standard PGS file format
     pgs <- read_table(file_path, col_names = FALSE)
     
@@ -43,26 +42,6 @@ read_pgs_file <- function(file_path, j) {
       trait = trait,
       id_col = "X2"
     ))
-  } else {
-    # Special case for file format
-    pgs <- read_table(file_path)
-    
-    # Extract trait information
-    pgs_filename <- basename(file_path)
-    trait_parts <- str_split(str_split(pgs_filename, "\\.")[[1]][1], "_")[[1]]
-    trait <- paste0(trait_parts[1], "_", trait_parts[2], "_", trait_parts[3])
-    
-    # Filter for Europeans and standardize
-    pgs_filtered <- pgs %>%
-      filter(IID %in% eur_ids) %>%
-      mutate(std_pgs = scale(SCORESUM)[,1])
-    
-    return(list(
-      data = pgs_filtered,
-      trait = trait,
-      id_col = "IID"
-    ))
-  }
 }
 
 # Function to run models for drugs and classes
@@ -236,7 +215,6 @@ process_and_add_to_workbook <- function(data_type) {
   
   # Rename PGS for display
   results_renamed <- results_formatted %>%
-    mutate(PGS = ifelse(PGS == "MDD_07_hsa04726", "MDDhsa04726", PGS)) %>%
     mutate(PGS = str_extract(PGS, "^[^_]+")) %>%
     mutate(PGS = ifelse(PGS == "UKB", "LDL-c", PGS))
   
