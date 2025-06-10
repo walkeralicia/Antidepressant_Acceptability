@@ -6,7 +6,9 @@ library(readxl)
 # -- Read in association results and process data in a single pipeline
 processed_data <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table3") %>%
   # Fill in NA values
-  fill(Dependent, PGS, .direction = "down") %>%
+  fill(Analysis, Dependent, PGS, .direction = "down") %>%
+  # Filter for BIP included
+  filter(Analysis == "BIP_Included") %>%
   # Filter for std_pgs terms only
   filter(Term == "std_pgs") %>%
   select(Dependent, PGS, estimate, std.error, P.value, FDR_P, Bonf_P, Sig_FDR, Sig_Bonf) %>%

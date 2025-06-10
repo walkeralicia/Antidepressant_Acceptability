@@ -11,7 +11,8 @@ output_dir <- "/scratch/user/uqawal15"
 # -- Load treatment group data and extract AGE and SNPSEX information
 dat <- read_csv(file.path(wkdir, "data/AGDSAcceptabilityTreatmentGroups_14122024.csv"))
 pheno <- read_csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv")) %>%
-  select(STUDYID, AGE, SEX, BMI)
+  select(STUDYID, AGE, SEX, BMI, DXBPD2) %>% 
+  rename(ParticipantID = STUDYID)
 
 # -- Drug mapping as tibble
 drug_mapping <- tibble(
@@ -36,50 +37,53 @@ pharma <- ad_mapped %>%
     TotalPrescriptionDays = sum(PrescriptionDays, na.rm = TRUE)
   )
 
-# Join data
-pheno <- pheno %>% 
-  rename(ParticipantID = STUDYID)
-
-#-- Join phenotypic data with pharma data
-pharma_full <- pharma %>%
-  left_join(pheno, by = "ParticipantID")
-
-# -- Convert SEX
-pharma_full <- pharma_full %>%
-  mutate(SEX = case_when(
-    SEX == "Female" ~ 0,
-    SEX == "Male" ~ 1,
-    TRUE ~ NA_real_
-  ))
-
-# -- Genetic data
+# -- Genetic data setup
 pgslist <- system('find /QRISdata/Q7280/pharmacogenomics/pgs -name "*agds_sbrc_gctb_plink2.sscore" -type f -exec ls {} \\;', intern = TRUE)
 pgs_codes <- c("PUD_01", "T2D_03", "CNT_03", "ADHD_01", "BIP_LOO", "BMI_LOO", "MDD_LOO", "SCZ_02", "Migraine_01", "SBP_01", "ANX_LOO", "ANO_LOO", "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "OCD_2024", "Neuroticism_01", "LRA_01")
-num <- length(pgs_codes)
 selected_pgs <- pgslist[grep(paste(pgs_codes, collapse = "|"), pgslist)]
 
 # -- List of Europeans
 eur <- read_table("/QRISdata/Q5338/Ancestry_analysis/PCA/AGDS_EUR.id", col_names = FALSE)
-
-# -- List of all antidepressant medications
-drugs <- unique(pharma_full$DrugName)
-classes <- c("SSRI", "SNRI", "TCA", "TeCA", "Lithium")
 
 # -- Linkage file for those with genetic data
 link <- read_table(file.path("/QRISdata/Q7280/pharmacogenomics", "data/StudyID_GenoID_link.txt")) %>%
   rename("ParticipantID" = "StudyCodeID") %>%
   distinct()
 
-#=========== LM MODELS =================================================================
+#=========== FUNCTION TO RUN PGS ANALYSIS =================================================================
 
-# -- Set up results list
-total_lm_list <- list()
-numAD_lm_list <- list()
-numClass_lm_list <- list()
-
-# -- For each PGS trait fit a linear model with treatment group as the independent variable
-for (j in 1:length(selected_pgs)) {
+run_pgs_analysis <- function(exclude_bip = FALSE) {
   
+  # Create dataset based on BIP exclusion
+  if (exclude_bip) {
+    pharma_full <- pharma %>%
+      left_join(pheno, by = "ParticipantID") %>%
+      filter(DXBPD2 != 1) %>%
+      select(-DXBPD2)
+    analysis_label <- "BIP_Excluded"
+  } else {
+    pharma_full <- pharma %>%
+      left_join(pheno, by = "ParticipantID") %>%
+      select(-DXBPD2)
+    analysis_label <- "BIP_Included"
+  }
+  
+  # -- Convert SEX
+  pharma_full <- pharma_full %>%
+    mutate(SEX = case_when(
+      SEX == "Female" ~ 0,
+      SEX == "Male" ~ 1,
+      TRUE ~ NA_real_
+    ))
+  
+  # -- Set up results list
+  total_lm_list <- list()
+  numAD_lm_list <- list()
+  numClass_lm_list <- list()
+  
+  # -- For each PGS trait fit a linear model
+  for (j in 1:length(selected_pgs)) {
+    
     # -- Read in PGS file for the selected trait
     pgs_file_path <- selected_pgs[j]
     pgs <- read_table(selected_pgs[j], col_names = TRUE)
@@ -88,9 +92,9 @@ for (j in 1:length(selected_pgs)) {
     pgs_filename <- basename(pgs_file_path)
     trait_parts <- unlist(strsplit(unlist(strsplit(pgs_filename, "\\."))[1], "_"))
     trait <- paste0(trait_parts[1], "_", trait_parts[2])
-    cat(trait, j, '\n')
+    cat(trait, j, analysis_label, '\n')
     
-    # -- Filter PGS for Europeans (loss of 806 individuals)
+    # -- Filter PGS for Europeans
     ids_to_keep <- as.character(eur$X2)
     pgs_e <- pgs %>% 
       filter(IID %in% ids_to_keep)
@@ -103,68 +107,73 @@ for (j in 1:length(selected_pgs)) {
     # -- Join PGS file with ad treatment group data
     pharma_link <- inner_join(link, pharma_full, by = "ParticipantID")
     pgs_atc <- inner_join(pharma_link, pgs_e, by = c("IID" = "IID"))
+    
+    #======= Analysis 1: Total Prescription Days
+    total_lm <- lm(TotalPrescriptionDays ~ AGE + SEX + std_pgs, data = pgs_atc) 
+    lm_summary <- tidy(total_lm) %>% rename(Term = term)
+    
+    lm_dat <- tibble(
+      Dependent = "TotalPrescriptions",
+      PGS = trait,
+      Analysis = analysis_label
+    ) %>%
+      bind_cols(lm_summary)
+    
+    total_lm_list[[length(total_lm_list) + 1]] <- lm_dat
+    
+    #====== Analysis 2: Number of unique Antidepressants
+    numAD_lm <- lm(num_ATC ~ AGE + SEX + std_pgs, data = pgs_atc) 
+    lm_summary <- tidy(numAD_lm) %>% rename(Term = term)
+    
+    lm_dat <- tibble(
+      Dependent = "NumADs",
+      PGS = trait,
+      Analysis = analysis_label
+    ) %>%
+      bind_cols(lm_summary)
+    
+    numAD_lm_list[[length(numAD_lm_list) + 1]] <- lm_dat
+    
+    #====== Analysis 3: Number of unique Antidepressant Classes
+    numClass_lm <- lm(num_class ~ AGE + SEX + std_pgs, data = pgs_atc) 
+    lm_summary <- tidy(numClass_lm) %>% rename(Term = term)
+    
+    lm_dat <- tibble(
+      Dependent = "NumClasses",
+      PGS = trait,
+      Analysis = analysis_label
+    ) %>%
+      bind_cols(lm_summary)
+    
+    numClass_lm_list[[length(numClass_lm_list) + 1]] <- lm_dat
+  }
   
-  #======= Analysis 1: Total Prescription Days
+  # -- Combine results
+  results <- bind_rows(total_lm_list, numAD_lm_list, numClass_lm_list) %>%
+    rename(P.value = p.value, t.value = statistic)
   
-  # -- LM: Total Prescription Duration ~ AGE + SEX + PGS
-  total_lm <- lm(TotalPrescriptionDays ~ AGE + SEX + std_pgs, data = pgs_atc) 
-  lm_summary <- tidy(total_lm) %>% 
-    rename(Term = term)
-  
-  # -- Create data frame
-  lm_dat <- tibble(
-    Dependent = "TotalPrescriptions",
-    PGS = trait
-  ) %>%
-    bind_cols(lm_summary)
-  
-  # -- Add to list
-  total_lm_list[[length(total_lm_list) + 1]] <- lm_dat
-  
-  #====== Analysis 2: Number of unique Antidepressants
-  
-  # --LM: Number of unique antidepressants ~ AGE + SEX + PGS
-  numAD_lm <- lm(num_ATC ~ AGE + SEX + std_pgs, data = pgs_atc) 
-  lm_summary <- tidy(numAD_lm) %>% 
-    rename(Term = term)
-  
-  # -- Create data frame
-  lm_dat <- tibble(
-    Dependent = "NumADs",
-    PGS = trait
-  ) %>%
-    bind_cols(lm_summary)
-  
-  # -- Add to list
-  numAD_lm_list[[length(numAD_lm_list) + 1]] <- lm_dat
-  
-  #====== Analysis 3: Number of unique Antidepressant Classes
-  
-  # --LM: Number of unique antidepressants ~ AGE + SEX +PGS
-  numClass_lm <- lm(num_class ~ AGE + SEX + std_pgs, data = pgs_atc) 
-  lm_summary <- tidy(numClass_lm) %>% 
-    rename(Term = term)
-  
-  # -- Create data frame
-  lm_dat <- tibble(
-    Dependent = "NumClasses",
-    PGS = trait
-  ) %>%
-    bind_cols(lm_summary)
-  
-  # -- Add to list
-  numClass_lm_list[[length(numClass_lm_list) + 1]] <- lm_dat
+  return(results)
 }
 
-# -- Combine results from every model
-results_lm <- bind_rows(total_lm_list, numAD_lm_list, numClass_lm_list) %>%
-  rename(P.value = p.value, 
-         t.value = statistic)
+#=========== RUN BOTH ANALYSES =================================================================
 
-# Step 1: Calculate adjusted p-values only for std_pgs terms
-pgs_terms <- results_lm %>%
+# Run analysis with BIP included
+cat("Running analysis with BIP included...\n")
+results_bip_included <- run_pgs_analysis(exclude_bip = FALSE)
+
+# Run analysis with BIP excluded
+cat("Running analysis with BIP excluded...\n")
+results_bip_excluded <- run_pgs_analysis(exclude_bip = TRUE)
+
+# Combine both results
+results_combined <- bind_rows(results_bip_included, results_bip_excluded)
+
+#=========== PROCESS COMBINED RESULTS =================================================================
+
+# Calculate adjusted p-values only for std_pgs terms
+pgs_terms <- results_combined %>%
   filter(Term == "std_pgs") %>%
-  group_by(Dependent) %>%
+  group_by(Dependent, Analysis) %>%
   mutate(
     FDR_P = p.adjust(P.value, method = "fdr"),
     Bonf_P = p.adjust(P.value, method = "bonferroni"),
@@ -172,11 +181,11 @@ pgs_terms <- results_lm %>%
     Sig_Bonf = if_else(Bonf_P < 0.05, "*", "")
   ) %>%
   ungroup() %>%
-  select(Dependent, PGS, Term, FDR_P, Bonf_P, Sig_FDR, Sig_Bonf)
+  select(Dependent, PGS, Term, Analysis, FDR_P, Bonf_P, Sig_FDR, Sig_Bonf)
 
-# Step 2: Join with full data — but include Term in the join key
-results_lm_annotated <- results_lm %>%
-  left_join(pgs_terms, by = c("Dependent", "PGS", "Term"))
+# Join with full data
+results_annotated <- results_combined %>%
+  left_join(pgs_terms, by = c("Dependent", "PGS", "Term", "Analysis"))
 
 # -- Remapping of variables
 pgs_rename_mapping <- c(
@@ -199,43 +208,44 @@ pgs_rename_mapping <- c(
   "LRA_01" = "LRA"
 )
 
-results_lm_renamed <- results_lm_annotated %>%
-  mutate(PGS = recode(PGS, !!!pgs_rename_mapping))
-
 dependent_mapping <- c(
   "NumADs" = "Medication Diversity",
   "NumClasses" = "Class Diversity",
   "TotalPrescriptions" = "Cumulative Prescription Dispense (days)"
 )
 
-results_lm_renamed <- results_lm_renamed %>%
-  mutate(Dependent = recode(Dependent, !!!dependent_mapping))
-
-
-results_lm_renamed <- results_lm_renamed %>%
+results_final <- results_annotated %>%
   mutate(
-    across(c(P.value, FDR_P, Bonf_P), ~  format(signif(.x, 2), scientific = TRUE))
+    PGS = recode(PGS, !!!pgs_rename_mapping),
+    Dependent = recode(Dependent, !!!dependent_mapping)
   ) %>%
   mutate(
+    across(c(P.value, FDR_P, Bonf_P), ~ format(signif(.x, 2), scientific = TRUE)),
     std.error = if_else(Dependent %in% c("Medication Diversity", "Class Diversity"),
                         round(std.error, 4), round(std.error, 2)),
     estimate = if_else(Dependent %in% c("Medication Diversity", "Class Diversity"),
                        round(estimate, 4), round(estimate, 1)),
-    t.value = if_else(Dependent %in% c("Medication Diversity", "Class Diversity"),
-                      round(t.value, 2), round(t.value, 2))
+    t.value = round(t.value, 2)
   )
 
-# Format for Excel display
-results_lm_renamed <- results_lm_renamed %>%
-  group_by(Dependent, PGS) %>%
+# Reorder columns for clarity
+results_final <- results_final %>%
+  select(Analysis,Dependent, PGS, Term, estimate, std.error, t.value, P.value, 
+         FDR_P, Bonf_P, Sig_FDR, Sig_Bonf, everything()) %>%
+  group_by(Analysis, Dependent, PGS) %>%
   mutate(
+    Analysis = if_else(Analysis != lag(Analysis, default = ""), Analysis, NA_character_),
     Dependent = if_else(Dependent != lag(Dependent, default = ""), Dependent, NA_character_),
     PGS = if_else(PGS != lag(PGS, default = ""), PGS, NA_character_)
   )
 
-# Add to existing workbook
+# Save to Excel
 wb <- loadWorkbook(file.path("/scratch/user/uqawal15", "All_Results.xlsx"))
 removeWorksheet(wb, "Table3")
 addWorksheet(wb, "Table3")
-writeData(wb, "Table3", results_lm_renamed)
+writeData(wb, "Table3", results_final)
 saveWorkbook(wb, file.path(output_dir, "All_Results.xlsx"), overwrite = TRUE)
+
+
+
+cat("Analysis complete. Combined results saved with BIP inclusion/exclusion indicator.\n")
