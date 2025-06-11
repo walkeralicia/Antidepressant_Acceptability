@@ -1,3 +1,19 @@
+# First option (AD class diversity)
+drug_mapping <- data.frame(
+  ATCCode = c('N06AB06', 'N06AB10', 'N06AB04', 'N06AX16', 'N06AX21', 
+              'N06AA09', 'N06AB05', 'N06AX11', 'N06AX23', 'N06AB03'),
+  DrugClass = c('SSRI', 'SSRI', 'SSRI', 'SNRI', 'SNRI', 'TCA', 'SSRI', 'TeCA', 'SNRI', 'SSRI')
+)
+drugs_mapped <- left_join(drugs, drug_mapping, by = "ATCCode")
+
+pharma <- drugs_mapped %>%
+group_by(ParticipantID) %>%
+mutate(
+  num_class = length(unique((DrugClass))
+)) %>%
+select(ParticipantID, num_class) %>%
+unique()
+
 
 #---- Create a covariate and phenotype file
 R
@@ -33,31 +49,15 @@ drugs <- read.csv(PRESCRIPTION_FILE) %>%
     LatestPrescription = as.Date(LatestPrescription, format = "%d/%m/%Y")
   )
   
-# Phenotypes
+#======== GWAS Outcomes =======================
 
-# First option (AD class diversity)
-drug_mapping <- data.frame(
-  ATCCode = c('N06AB06', 'N06AB10', 'N06AB04', 'N06AX16', 'N06AX21', 
-              'N06AA09', 'N06AB05', 'N06AX11', 'N06AX23', 'N06AB03'),
-  DrugClass = c('SSRI', 'SSRI', 'SSRI', 'SNRI', 'SNRI', 'TCA', 'SSRI', 'TeCA', 'SNRI', 'SSRI')
-)
-drugs_mapped <- left_join(drugs, drug_mapping, by = "ATCCode")
-
-pharma <- drugs_mapped %>%
-group_by(ParticipantID) %>%
-mutate(
-  num_class = length(unique((DrugClass))
-)) %>%
-select(ParticipantID, num_class) %>%
-unique()
-
-# Second option (Non-responders: Anyone not in SSRI without comorbid BIP and >= 360 SSRI dispense)
+#------- First Option (SSRI acceptability) --------------------
 
 # Identify participants not in SSRI, BIP-L, or BIP+L groups
 remaining <- groups %>% 
   filter(!(DrugClass %in% c("SSRI") | DrugName %in% c("BIP-L", "BIP+L")))
 
-# Filter drugs to include only those from the remaining participants
+# Filter prescription data to include only those from the remaining participants
 drugs_incl <- drugs %>% 
   filter(ParticipantID %in% remaining$ParticipantID)
 
@@ -71,24 +71,46 @@ cleaned_data <- drugs_incl %>%
   filter(!ParticipantID %in% long_term_users$ParticipantID)
 
 # Create SSRI responder phenotype
-# 1 = SSRI responder, 0 = non-responder (brief SSRI use), NA = not applicable
+# 1 = SSRI responder, 0 = non-responder, NA = not applicable
 groups$SSRI_Responder <- ifelse(
   groups$ParticipantID %in% cleaned_data$ParticipantID, 0,
   ifelse(groups$DrugClass == "SSRI", 1, NA)
 )
 
-# Combine all datasets and create third phenotype (SSRIs vs SNRIs)
+#------ Second option (SSRI+SNRI acceptability) -------------------------
+
+# Identify participants not in SSRI, SNRI, BIP-L, or BIP+L groups
+remaining <- groups %>% 
+  filter(!(DrugClass %in% c("SSRI", "SNRI") | DrugName %in% c("BIP-L", "BIP+L")))
+
+# Filter prescriptions data to include only those from the remaining participants
+drugs_incl <- drugs %>% 
+  filter(ParticipantID %in% remaining$ParticipantID)
+
+# Identify participants with long-term SSRI or SNRI use (>360 days)
+long_term_users <- drugs_incl %>%
+  filter(ATCCode %in% c("N06AB03", "N06AB04", "N06AB05", "N06AB06", "N06AB10", "N06AX16", "N06AX21", "N06AX23") & PrescriptionDays > 360) %>%
+  distinct(ParticipantID)
+
+# Remove long-term users from the dataset
+cleaned_data <- drugs_incl %>%
+  filter(!ParticipantID %in% long_term_users$ParticipantID)
+
+# Create SSRI+SNRI responder phenotype
+# 1 = SSRI+SNRI responder, 0 = non-responder, NA = not applicable
+groups$SSRI_SNRI_Responder <- ifelse(
+  groups$ParticipantID %in% cleaned_data$ParticipantID, 0,
+  ifelse(groups$DrugClass %in% c("SSRI", "SNRI"), 1, NA)
+)
+
+#---------- # Combine all datasets
+
 dat <- pheno %>%
   full_join(groups, by = c("STUDYID" = "ParticipantID")) %>%
-  full_join(pharma, by = c("STUDYID" = "ParticipantID")) %>%
+  #full_join(pharma, by = c("STUDYID" = "ParticipantID")) %>%
   full_join(pcs, by = c("IID" = "IID")) %>%
   filter(!is.na(IID)) %>%
-  # Recode drug class (SNRI = 1, SSRI = 0, other = NA)
   mutate(
-    DrugClass = ifelse(
-      DrugClass != "SSRI" & DrugClass != "SNRI", NA,
-      ifelse(DrugClass == "SNRI", 1, 0)
-    ),
     # Ensure AGE is numeric
     AGE = as.numeric(AGE),
     # Replace NA in SEX with "NONE"
@@ -148,102 +170,15 @@ plink2 \
 --threads 8 \
 --out SSRI_response_gwas_chr${c}_results
 
-
-
-#--------------- Run ATC Class Diversity GWAS using PLINK2 (common variants)
-
-#!/bin/bash
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
-#SBATCH --time=24:00:00
-#SBATCH --mem=100G
-#SBATCH --job-name=NUM_ATC
-#SBATCH --partition=general
-#SBATCH --account=a_mcrae
-#SBATCH --array=1-22
-#SBATCH -o /scratch/user/uqawal15/NUM_ATC_gwas_chr%a.stdout
-#SBATCH -e /scratch/user/uqawal15/NUM_ATC_gwas_chr%a.stderr
-
-# Set the chromosome based on SLURM array index
-c=${SLURM_ARRAY_TASK_ID}
-
-module load plink/2.00a3.6-gcc-11.3.0
-wkdir="/scratch/user/uqawal15"
-bfiledir="/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink"
-cd ${wkdir}
-
-plink2 \
---bfile ${bfiledir}/imputed_chr${c} \
---pheno ${wkdir}/AD_acceptability_outcome.txt \
---pheno-name num_class \
---covar ${wkdir}/AD_acceptability_covariates.txt \
---covar-variance-standardize \
---freq \
---maf 0.01 \
---glm hide-covar \
---threads 8 \
---out NUM_ATC_gwas_chr${c}_results
-
-#--------------- Run GWAS using PLINK2 (common variants)
-
-#!/bin/bash
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
-#SBATCH --time=24:00:00
-#SBATCH --mem=100G
-#SBATCH --job-name=SSRI_SNRI_gwas
-#SBATCH --partition=general
-#SBATCH --account=a_mcrae
-#SBATCH --array=1-22
-#SBATCH -o /scratch/user/uqawal15/SSRI_SNRI_gwas_chr%a.stdout
-#SBATCH -e /scratch/user/uqawal15/SSRI_SNRI_gwas_chr%a.stderr
-
-# Set the chromosome based on SLURM array index
-c=${SLURM_ARRAY_TASK_ID}
-
-module load plink/2.00a3.6-gcc-11.3.0
-wkdir="/scratch/user/uqawal15"
-bfiledir="/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink"
-cd ${wkdir}
-
-plink2 \
---bfile ${bfiledir}/imputed_chr${c} \
---pheno ${wkdir}/AD_acceptability_outcome.txt \
---pheno-name DrugClass \
---1 \
---covar ${wkdir}/AD_acceptability_covariates.txt \
---covar-variance-standardize \
---freq \
---maf 0.01 \
---glm hide-covar \
---threads 8 \
---out SSRI_SNRI_gwas_chr${c}_results
-
+#---------------------------------------------
 
 # Concatenate gwas results
 
 ```{bash}
 # First process chr1, keeping header
-head -n1 SSRI_SNRI_gwas_chr1_results.DrugClass.glm.logistic.hybrid > SSRI_SNRI_gwas_concat.txt
-head -n1 SSRI_SNRI_gwas_chr1_results.afreq > SSRI_SNRI_afreq_concat.txt
 
 head -n1 SSRI_response_gwas_chr1_results.SSRI_Responder.glm.logistic.hybrid > SSRI_Responder_gwas_concat.txt
 head -n1 SSRI_response_gwas_chr1_results.afreq > SSRI_Responder_afreq_concat.txt
-
-head -n1 NUM_ATC_gwas_chr1_results.num_class.glm.linear > NUM_ATC_gwas_concat.txt
-head -n1 NUM_ATC_gwas_chr1_results.afreq > NUM_ATC_afreq_concat.txt
-
-# Process each chromosome
-for chr in {1..22}; do
-    echo "Processing chromosome ${chr}..."
-    # Filter out CONST_OMITTED_ALLELE and append (no header)
-    awk 'NR>1 && $NF!="CONST_OMITTED_ALLELE"' SSRI_SNRI_gwas_chr${chr}_results.DrugClass.glm.logistic.hybrid >> SSRI_SNRI_gwas_concat.txt
-    # append (no header) AF
-    awk 'NR>1' SSRI_SNRI_gwas_chr${chr}_results.afreq >> SSRI_SNRI_afreq_concat.txt
-done
-echo "Done! Results saved."
 
 # Process each chromosome
 for chr in {1..22}; do
@@ -255,16 +190,6 @@ for chr in {1..22}; do
 done
 echo "Done! Results saved."
 
-# Process each chromosome
-for chr in {1..22}; do
-    echo "Processing chromosome ${chr}..."
-    # Filter out CONST_OMITTED_ALLELE and append (no header)
-    awk 'NR>1 && $NF!="CONST_OMITTED_ALLELE"' NUM_ATC_gwas_chr${chr}_results.num_class.glm.linear >> NUM_ATC_gwas_concat.txt
-    # append (no header) AF
-    awk 'NR>1' NUM_ATC_gwas_chr${chr}_results.afreq >> NUM_ATC_afreq_concat.txt
-done
-
-echo "Done! Results saved."
 ```
 
 #################################################################
@@ -286,84 +211,7 @@ calculate_lambda <- function(pvals) {
   return(lambda)
 }
 
-
-#-- Plot AGDS SSRI vs SNRI gwas results)
-
-# Path to your GWAS results
-input_file <- "/scratch/user/uqawal15/SSRI_SNRI_gwas_concat.txt"
-output_dir <- "/scratch/user/uqawal15/"
-
-gwas <- fread(input_file, 
-              select = c("#CHROM", "POS", "ID", "P"), 
-              fill = TRUE)
-              
-gwas_cleaned <- gwas %>%
-  mutate(P = as.numeric(P)) %>%
-  filter(!is.na(P))
-
-# Make the Manhattan plot
-png(file.path(output_dir, "SSRI_SNRI_gwas_manhattan.png"), 
-    bg = "white", 
-    type = "cairo", 
-    width = 2000,
-    height = 1200,
-    res = 300)
-
-manhattan(gwas_cleaned, 
-          chr="#CHROM", 
-          bp="POS", 
-          snp="ID", 
-          p="P",
-          cex = 0.6,
-          cex.axis = 0.8,
-          suggestiveline = -log10(5e-6),
-          genomewideline = -log10(5e-8),
-          main = "SSRI vs SNRI Acceptability GWAS")
-dev.off()
-
-# Make the qqplot
-png(file.path(output_dir, "SSRI_SNRI_gwas_qqplot.png"), 
-    bg = "white", 
-    type = "cairo", 
-    width = 1800,
-    height = 1800,
-    res = 300)
-
-qq(gwas_cleaned$P, main = "QQ Plot: SSRI vs SNRI Acceptability")
-dev.off()
-
-#-- Save sig hits
-sig <- gwas_cleaned %>%
-filter(P < 0.000005) %>%
-arrange(P)
-
-fwrite(sig, file.path(output_dir, "SSRI_SNRI_gwas_top_hits.txt"))
-
-# Lambda
-lambda <- calculate_lambda(gwas_cleaned$P) # 1.007168
-
-# top hit was SNP rs75296510 at chr9:78274303 with p-value: 2.18171e-07 located downstream of PCSK5 (highly expressed in the intestine)
-# Same for second top hit rs143408570
-# third top hit rs11672860 is near the gene PTPRS
-# fourth hit at chr5:153736081 is in the GALNT10 gene 
-
-#We conclude that variability at the PCSK5 locus influences HDL-C levels, possibly through the inactivation of endothelial lipase activity, and, consequently, atherosclerotic cardiovascular disease risk.
-# https://pubmed.ncbi.nlm.nih.gov/20031622/
-
-# GALNT10 gene: hese enzymes catalyze the first step in the synthesis of mucin-type oligosaccharides. These proteins transfer GalNAc from UDP-GalNAc to either serine or threonine residues of polypeptide acceptors.
-# has been associated with post partum depression and schizoprenia. widely expressed in the body including the brain.
-
-
-  
-###################################################################
-#-- Plot AGDS SSRI Responder gwas results
-```{r}
-# load libraries
-library(data.table)
-library(qqman)
-library(dplyr)
-
-# Path to your GWAS results
+# Path to GWAS results
 input_file <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder_gwas_concat.txt"
 freq <- fread("/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder_afreq_concat.txt", fill = TRUE)
 output_dir <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS"
@@ -461,66 +309,6 @@ fwrite(gwas_final, file.path(output_dir, "SSRI_Acceptability_gwas_top_hits.txt")
 # Lambda
 lambda <- calculate_lambda(gwas_cleaned$P) # 1.006737
 
-
-###################################################################
-#-- Plot AGDS antidepressant class diversity gwas results
-```{r}
-# load libraries
-library(data.table)
-library(qqman)
-library(dplyr)
-
-# Path to your GWAS results
-input_file <- "/scratch/user/uqawal15/NUM_ATC_gwas_concat.txt"
-output_dir <- "/scratch/user/uqawal15/"
-
-gwas <- fread(input_file, 
-              select = c("#CHROM", "POS", "ID", "P"), 
-              fill = TRUE)
-              
-gwas_cleaned <- gwas %>%
-  mutate(P = as.numeric(P)) %>%
-  filter(!is.na(P))
-
-# Make the Manhattan plot
-png(file.path(output_dir, "Class_diversity_gwas_manhattan.png"), 
-    bg = "white", 
-    type = "cairo", 
-    width = 2000,
-    height = 1200,
-    res = 300)
-
-manhattan(gwas_cleaned, 
-          chr="#CHROM", 
-          bp="POS", 
-          snp="ID", 
-          p="P",
-          cex = 0.6,
-          cex.axis = 0.8,
-          suggestiveline = -log10(5e-6),
-          genomewideline = -log10(5e-8),
-          main = "Class diversity GWAS")
-dev.off()
-
-# Make the qqplot
-png(file.path(output_dir, "Class_diversity_gwas_qqplot.png"), 
-    bg = "white", 
-    type = "cairo", 
-    width = 1800,
-    height = 1800,
-    res = 300)
-
-qq(gwas_cleaned$P, main = "QQ Plot: Class diversity")
-dev.off()
-
-#-- Save sig hits
-sig <- gwas_cleaned %>%
-filter(P < 0.000005) %>%
-arrange(P)
-
-fwrite(sig, file.path(output_dir, "Class_diversity_gwas_top_hits.txt"))
-
-######################################################
 
 
 # Move results to QRISdata

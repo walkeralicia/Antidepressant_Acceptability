@@ -368,7 +368,7 @@ main_plot <- ggplot(heatmap_data, aes(x = Term, y = Label, fill = OR)) +
 final_plot <- plot_grid(
   combined_plot, main_plot,
   ncol = 2,
-  rel_widths = c(1, 1.25),
+  rel_widths = c(1, 1.15),
   labels = c("", "B")
 )
 
