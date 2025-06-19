@@ -559,7 +559,7 @@ workingpath="/QRISdata/Q7280/pharmacogenomics/pgs/sumstats"
 cd $workingpath
 
 path2gctb="/home/uqawal15/bin/gctb_2.5.4_Linux"
-ldm1="/QRISdata/Q6913/Pipeline/ukbEUR_Imputed/"
+ldm1="/QRISdata/Q6913/Pipeline/ukbEUR_Imputed"
 
 trait=NEU_2018
 gwas_file=sumstats_neuroticism_ctg_format.txt
@@ -699,3 +699,339 @@ ${path2gctb}/gctb \
 --annot  $annot  \
 --thread 32 \
 --out  ${workingpath}/${trait}/SBayesRC/${gwas_file}_imp.ma.imputed_sbrc_gctb
+
+
+
+################## SSRI Acceptability ###############################
+
+
+#-- COJO format
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=2:00:00
+#SBATCH --mem=50G
+#SBATCH --job-name=SSRI_Acceptability_format
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/format.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/format.stderr
+
+module load r/4.4.0-gfbf-2023a
+export R_LIBS=/home/uqawal15/R_libraries/rlib_4.4.0-gfbf-2023a
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+cd $workingpath
+
+trait=SSRI_Acceptability
+gwas_file=SSRI_Acceptability_GWAS
+ma_file=${trait}/${gwas_file}
+
+Rscript  /QRISdata/Q7280/pharmacogenomics/pgs/sumstats/cojo_format_v8.R  \
+  --file  ${workingpath}/${trait}/${gwas_file}.ma  \
+  --out  ${workingpath}/${trait}/${gwas_file}.cojo   \
+  --SNP  SNP  \
+  --A1 A1  \
+  --A2  A2 \
+  --freq  A1_FREQ \
+  --pvalue P  \
+  --beta  b  \
+  --se SE \
+  --samplesize  3566,4722
+
+#-- GCTB QC and Impute
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=4
+#SBATCH --time=12:00:00
+#SBATCH --mem=150G
+#SBATCH --job-name=SSRI_Acceptability_impute
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/impute.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/impute.stderr
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+cd $workingpath
+
+path2gctb="/home/uqawal15/bin/gctb_2.5.2_Linux"
+ldm1="/QRISdata/Q6913/Pipeline/ukbEUR_Imputed"
+
+trait=SSRI_Acceptability
+gwas_file=SSRI_Acceptability_GWAS
+ma_file=${trait}/${gwas_file}
+
+${path2gctb}/gctb --ldm-eigen $ldm1 --gwas-summary ${workingpath}/${ma_file}.cojo --impute-summary --out ${workingpath}/${ma_file} --thread 4
+
+#-- SBayesRC
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
+#SBATCH --time=48:00:00
+#SBATCH --mem=150G
+#SBATCH --job-name=SSRI_Acceptability_sbrc
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/sbrc.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/sbrc.stderr
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+
+path2gctb="/home/uqawal15/bin/gctb_2.5.2_Linux"
+ldm1="/QRISdata/Q6913/Pipeline/ukbEUR_Imputed/"
+annot="/QRISdata/Q6913/Pipeline/annot_baseline2.2.txt"
+
+trait=SSRI_Acceptability
+gwas_file=SSRI_Acceptability_GWAS
+ma_file=${trait}/${gwas_file}
+
+mkdir -p ${workingpath}/${trait}/SBayesRC
+
+${path2gctb}/gctb \
+--sbayes RC  \
+--ldm-eigen   ${ldm1}   \
+--gwas-summary   ${workingpath}/${ma_file}.cojo.imp.imputed.ma   \
+--annot  $annot  \
+--thread 32 \
+--out  ${workingpath}/${trait}/SBayesRC/${gwas_file}.cojo.imp.sbrc_gctb
+
+################## SSRI+SNRI Acceptability ###############################
+
+#-- COJO format
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=2:00:00
+#SBATCH --mem=50G
+#SBATCH --job-name=SSRI_SNRI_Acceptability_format
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/format.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/format.stderr
+
+module load r/4.4.0-gfbf-2023a
+export R_LIBS=/home/uqawal15/R_libraries/rlib_4.4.0-gfbf-2023a
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+cd $workingpath
+
+trait=SSRI_SNRI_Acceptability
+gwas_file=SSRI_SNRI_Acceptability_GWAS
+ma_file=${trait}/${gwas_file}
+
+Rscript  /QRISdata/Q7280/pharmacogenomics/pgs/sumstats/cojo_format_v8.R  \
+  --file  ${workingpath}/${trait}/${gwas_file}.ma  \
+  --out  ${workingpath}/${trait}/${gwas_file}.cojo   \
+  --SNP  SNP  \
+  --A1 A1  \
+  --A2  A2 \
+  --freq  A1_FREQ \
+  --pvalue P  \
+  --beta  b  \
+  --se SE \
+  --samplesize  5774,2348
+  
+#-- GCTB QC and Impute
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=4
+#SBATCH --time=12:00:00
+#SBATCH --mem=150G
+#SBATCH --job-name=SSRI_SNRI_Acceptability_impute
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/impute.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/impute.stderr
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+cd $workingpath
+
+path2gctb="/home/uqawal15/bin/gctb_2.5.2_Linux"
+ldm1="/QRISdata/Q6913/Pipeline/ukbEUR_Imputed"
+
+trait=SSRI_SNRI_Acceptability
+gwas_file=SSRI_SNRI_Acceptability_GWAS
+ma_file=${trait}/${gwas_file}
+
+${path2gctb}/gctb --ldm-eigen $ldm1 --gwas-summary ${workingpath}/${ma_file}.cojo --impute-summary --out ${workingpath}/${ma_file} --thread 4
+
+#-- SBayesRC
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
+#SBATCH --time=48:00:00
+#SBATCH --mem=150G
+#SBATCH --job-name=SSRI_SNRI_Acceptability_sbrc
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/sbrc.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/sbrc.stderr
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+
+path2gctb="/home/uqawal15/bin/gctb_2.5.2_Linux"
+ldm1="/QRISdata/Q6913/Pipeline/ukbEUR_Imputed/"
+annot="/QRISdata/Q6913/Pipeline/annot_baseline2.2.txt"
+
+trait=SSRI_SNRI_Acceptability
+gwas_file=SSRI_SNRI_Acceptability_GWAS
+ma_file=${trait}/${gwas_file}
+
+mkdir -p ${workingpath}/${trait}/SBayesRC
+
+${path2gctb}/gctb \
+--sbayes RC  \
+--ldm-eigen   ${ldm1}   \
+--gwas-summary   ${workingpath}/${ma_file}.cojo.imp.imputed.ma   \
+--annot  $annot  \
+--thread 32 \
+--out  ${workingpath}/${trait}/SBayesRC/${gwas_file}.cojo.imp.sbrc_gctb
+
+
+
+################## SSRI self-reported efficacy ###############################
+
+
+#-- COJO format
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=2:00:00
+#SBATCH --mem=50G
+#SBATCH --job-name=SSRI_Responder_format
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder/format.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder/format.stderr
+
+module load r/4.4.0-gfbf-2023a
+export R_LIBS=/home/uqawal15/R_libraries/rlib_4.4.0-gfbf-2023a
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+cd $workingpath
+
+trait=SSRI_Responder
+gwas_file=SSRI_Responder_GWAS
+ma_file=${trait}/${gwas_file}
+
+Rscript  /QRISdata/Q7280/pharmacogenomics/pgs/sumstats/cojo_format_v8.R  \
+  --file  ${workingpath}/${trait}/${gwas_file}.ma  \
+  --out  ${workingpath}/${trait}/${gwas_file}.cojo   \
+  --SNP  SNP  \
+  --A1 A1  \
+  --A2  A2 \
+  --freq  A1_FREQ \
+  --pvalue P  \
+  --beta  b  \
+  --se SE \
+  --samplesize  6739,2744
+
+#-- GCTB QC and Impute
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=4
+#SBATCH --time=12:00:00
+#SBATCH --mem=150G
+#SBATCH --job-name=SSRI_Responder_impute
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder/impute.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder/impute.stderr
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+cd $workingpath
+
+path2gctb="/home/uqawal15/bin/gctb_2.5.2_Linux"
+ldm1="/QRISdata/Q6913/Pipeline/ukbEUR_Imputed"
+
+trait=SSRI_Responder
+gwas_file=SSRI_Responder_GWAS
+ma_file=${trait}/${gwas_file}
+
+${path2gctb}/gctb --ldm-eigen $ldm1 --gwas-summary ${workingpath}/${ma_file}.cojo --impute-summary --out ${workingpath}/${ma_file} --thread 4
+
+
+
+################## SSRI+SNRI self-reported efficacy ###############################
+
+
+#-- COJO format
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=2:00:00
+#SBATCH --mem=50G
+#SBATCH --job-name=SSRI_SNRI_Responder_format
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Responder/format.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Responder/format.stderr
+
+module load r/4.4.0-gfbf-2023a
+export R_LIBS=/home/uqawal15/R_libraries/rlib_4.4.0-gfbf-2023a
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+cd $workingpath
+
+trait=SSRI_SNRI_Responder
+gwas_file=SSRI_SNRI_Responder_GWAS
+ma_file=${trait}/${gwas_file}
+
+Rscript  /QRISdata/Q7280/pharmacogenomics/pgs/sumstats/cojo_format_v8.R  \
+  --file  ${workingpath}/${trait}/${gwas_file}.ma  \
+  --out  ${workingpath}/${trait}/${gwas_file}.cojo   \
+  --SNP  SNP  \
+  --A1 A1  \
+  --A2  A2 \
+  --freq  A1_FREQ \
+  --pvalue P  \
+  --beta  b  \
+  --se SE \
+  --samplesize  8548,934
+  
+  
+#-- GCTB QC and Impute
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=4
+#SBATCH --time=12:00:00
+#SBATCH --mem=150G
+#SBATCH --job-name=SSRI_SNRI_Responder_impute
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Responder/impute.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Responder/impute.stderr
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+cd $workingpath
+
+path2gctb="/home/uqawal15/bin/gctb_2.5.2_Linux"
+ldm1="/QRISdata/Q6913/Pipeline/ukbEUR_Imputed"
+
+trait=SSRI_SNRI_Responder
+gwas_file=SSRI_SNRI_Responder_GWAS
+ma_file=${trait}/${gwas_file}
+
+${path2gctb}/gctb --ldm-eigen $ldm1 --gwas-summary ${workingpath}/${ma_file}.cojo --impute-summary --out ${workingpath}/${ma_file} --thread 4
+
+

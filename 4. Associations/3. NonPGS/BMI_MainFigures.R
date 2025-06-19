@@ -82,7 +82,7 @@ main_p <- ggplot(dat, aes(x = Term, y = Estimate, group = Adjusted, color = Adju
                 x = Term, 
                 y = (Estimate + (1.96 * `Std..Error`) + 0.01)), 
             size = 6, color = "black", 
-            position = position_dodge(width = dodge_width)) 
+            position = position_dodge(width = dodge_width))  
 
 main_p
 
