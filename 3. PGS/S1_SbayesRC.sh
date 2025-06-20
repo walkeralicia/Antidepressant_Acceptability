@@ -796,10 +796,10 @@ mkdir -p ${workingpath}/${trait}/SBayesRC
 ${path2gctb}/gctb \
 --sbayes RC  \
 --ldm-eigen   ${ldm1}   \
---gwas-summary   ${workingpath}/${ma_file}.cojo.imp.imputed.ma   \
+--gwas-summary   ${workingpath}/${ma_file}.imputed.ma   \
 --annot  $annot  \
 --thread 32 \
---out  ${workingpath}/${trait}/SBayesRC/${gwas_file}.cojo.imp.sbrc_gctb
+--out  ${workingpath}/${trait}/SBayesRC/${gwas_file}.imputed.ma.sbrc_gctb
 
 ################## SSRI+SNRI Acceptability ###############################
 
@@ -894,10 +894,10 @@ mkdir -p ${workingpath}/${trait}/SBayesRC
 ${path2gctb}/gctb \
 --sbayes RC  \
 --ldm-eigen   ${ldm1}   \
---gwas-summary   ${workingpath}/${ma_file}.cojo.imp.imputed.ma   \
+--gwas-summary   ${workingpath}/${ma_file}.imputed.ma   \
 --annot  $annot  \
 --thread 32 \
---out  ${workingpath}/${trait}/SBayesRC/${gwas_file}.cojo.imp.sbrc_gctb
+--out  ${workingpath}/${trait}/SBayesRC/${gwas_file}.imputed.ma.srbc_gctb
 
 
 
@@ -965,6 +965,40 @@ gwas_file=SSRI_Responder_GWAS
 ma_file=${trait}/${gwas_file}
 
 ${path2gctb}/gctb --ldm-eigen $ldm1 --gwas-summary ${workingpath}/${ma_file}.cojo --impute-summary --out ${workingpath}/${ma_file} --thread 4
+
+#-- SBayesRC
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
+#SBATCH --time=48:00:00
+#SBATCH --mem=150G
+#SBATCH --job-name=SSRI_Responder_sbrc
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder/sbrc.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder/sbrc.stderr
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+
+path2gctb="/home/uqawal15/bin/gctb_2.5.2_Linux"
+ldm1="/QRISdata/Q6913/Pipeline/ukbEUR_Imputed/"
+annot="/QRISdata/Q6913/Pipeline/annot_baseline2.2.txt"
+
+trait=SSRI_Responder
+gwas_file=SSRI_Responder_GWAS
+ma_file=${trait}/${gwas_file}
+
+mkdir -p ${workingpath}/${trait}/SBayesRC
+
+${path2gctb}/gctb \
+--sbayes RC  \
+--ldm-eigen   ${ldm1}   \
+--gwas-summary   ${workingpath}/${ma_file}.imputed.ma   \
+--annot  $annot  \
+--thread 32 \
+--out  ${workingpath}/${trait}/SBayesRC/${gwas_file}.imputed.ma.sbrc_gctb
 
 
 
@@ -1035,3 +1069,36 @@ ma_file=${trait}/${gwas_file}
 ${path2gctb}/gctb --ldm-eigen $ldm1 --gwas-summary ${workingpath}/${ma_file}.cojo --impute-summary --out ${workingpath}/${ma_file} --thread 4
 
 
+#-- SBayesRC
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
+#SBATCH --time=48:00:00
+#SBATCH --mem=150G
+#SBATCH --job-name=SSRI_SNRI_Responder_sbrc
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Responder/sbrc.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Responder/sbrc.stderr
+
+workingpath="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/"
+
+path2gctb="/home/uqawal15/bin/gctb_2.5.2_Linux"
+ldm1="/QRISdata/Q6913/Pipeline/ukbEUR_Imputed/"
+annot="/QRISdata/Q6913/Pipeline/annot_baseline2.2.txt"
+
+trait=SSRI_SNRI_Responder
+gwas_file=SSRI_SNRI_Responder_GWAS
+ma_file=${trait}/${gwas_file}
+
+mkdir -p ${workingpath}/${trait}/SBayesRC
+
+${path2gctb}/gctb \
+--sbayes RC  \
+--ldm-eigen   ${ldm1}   \
+--gwas-summary   ${workingpath}/${ma_file}.imputed.ma   \
+--annot  $annot  \
+--thread 32 \
+--out  ${workingpath}/${trait}/SBayesRC/${gwas_file}.imputed.ma.sbrc_gctb
