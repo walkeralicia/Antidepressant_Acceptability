@@ -108,10 +108,8 @@ process_treatment_groups <- function(duration) {
     filter(TreatmentGroup == "Combination" & ValidDrugs) %>%
     group_by(ParticipantID) %>%
     summarise(
-      NumberOfTreatmentPeriods = sum(NumberOfTreatmentPeriods),
-      AverageTreatmentPeriodDays = mean(AverageTreatmentPeriodDays),
-      MaxTreatmentPeriodDays = max(MaxTreatmentPeriodDays),
-      MinTreatmentPeriodDays = min(MinTreatmentPeriodDays),
+      NumberOfPrescriptionEpisodes = sum(NumberOfPrescriptionEpisodes),
+      AveragePrescriptionEpisodeDays = mean(AveragePrescriptionEpisodeDays),
       EarliestPrescription = min(EarliestPrescription),
       LatestPrescription = max(LatestPrescription),
       PrescriptionDays = sum(PrescriptionDays),
@@ -141,10 +139,8 @@ process_treatment_groups <- function(duration) {
     filter(ParticipantID %in% unallocated_ids) %>%
     group_by(ParticipantID) %>%
     summarise(
-      NumberOfTreatmentPeriods = sum(NumberOfTreatmentPeriods),
-      AverageTreatmentPeriodDays = mean(AverageTreatmentPeriodDays),
-      MaxTreatmentPeriodDays = max(MaxTreatmentPeriodDays),
-      MinTreatmentPeriodDays = min(MinTreatmentPeriodDays),
+      NumberOfPrescriptionEpisodes = sum(NumberOfPrescriptionEpisodes),
+      AveragePrescriptionEpisodeDays = mean(AveragePrescriptionEpisodeDays),
       EarliestPrescription = min(EarliestPrescription),
       LatestPrescription = max(LatestPrescription),
       PrescriptionDays = sum(PrescriptionDays),

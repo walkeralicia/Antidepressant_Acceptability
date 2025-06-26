@@ -78,8 +78,6 @@ for (duration in durations) {
     mutate(
       NumberOfTreatmentPeriods = NA,
       AverageTreatmentPeriodDays = NA,
-      MaxTreatmentPeriodDays = NA,
-      MinTreatmentPeriodDays = NA,
       EarliestPrescription = NA,
       LatestPrescription = NA,
       PrescriptionDays = NA,
@@ -98,8 +96,6 @@ for (duration in durations) {
   bip_wout_L <- data.frame(ParticipantID = bip_wout_L_ids,
                            NumberOfTreatmentPeriods = NA,
                            AverageTreatmentPeriodDays = NA,
-                           MaxTreatmentPeriodDays = NA,
-                           MinTreatmentPeriodDays = NA,
                            EarliestPrescription = NA,
                            LatestPrescription = NA,
                            PrescriptionDays = NA,
