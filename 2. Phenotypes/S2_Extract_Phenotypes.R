@@ -33,7 +33,7 @@ pheno <- left_join(pheno, followup_bip, by = "STUDYID") %>%
 dep <- pheno %>% select(STUDYID, AGE2WKF, TIMEWKS, TIMES2WK) %>%
   mutate(across(-STUDYID, as.numeric))
 
-#=== Proportion of patients with DSM-5 symptoms during worst MDD episode ===
+##########
 sym <- pheno %>% select(STUDYID, LOWINT2W, DEP2WK, APCHANGE, WTCHANGE, DIFFFALL, 
                         SLEPMORE, FIDGETY, SLOWMOVE, FATIGUED, GUILTY, NOFOCUS,
                         DEATHTHK)  %>%
@@ -48,15 +48,28 @@ sym <- pheno %>% select(STUDYID, LOWINT2W, DEP2WK, APCHANGE, WTCHANGE, DIFFFALL,
     . == 2 ~ 1,
     TRUE ~ .
   ))) %>% 
-  mutate(CUM_SYM = rowSums(select(., -STUDYID), na.rm=FALSE)) %>%
-  mutate(MDD = case_when(
-    (is.na(LOWINT2W) & is.na(DEP2WK)) | is.na(CUM_SYM) ~ NA_real_,
-    (LOWINT2W == 1 | DEP2WK == 1) & CUM_SYM >= 5 ~ 1,
-    TRUE ~ 0)
-  )
+  mutate(
+    # First calculate if all symptoms are missing
+    CORE_MISSING = is.na(LOWINT2W) & is.na(DEP2WK),
+    ALL_MISSING = rowSums(is.na(select(., -STUDYID))) == 9,
+    # Calculate symptom sum
+    CUM_SYM = case_when(
+      CORE_MISSING ~ NA_real_,
+      TRUE ~ rowSums(select(., -STUDYID), na.rm=TRUE)
+    ),
+    # Then calculate MDD
+    MDD = case_when(
+      CORE_MISSING ~ NA_real_,
+      (LOWINT2W == 1 | DEP2WK == 1) & CUM_SYM >= 5 ~ 1,
+      TRUE ~ 0
+    )
+  ) %>%
+  select(-ALL_MISSING, -CORE_MISSING)  # Remove helper variable if desired
 
-#-- Percentage of the cohort with Lifetime MDD
-perc_MDD <- sum(sym$MDD, na.rm = TRUE) / sum(!is.na(sym$MDD)) * 100
+#-- Percentage of the cohort with Lifetime MDD (excluding NAs)
+perc_MDD <- sum(sym$MDD, na.rm = TRUE) / sum(!is.na(sym$MDD)) * 100 # 88.
+# including NAs
+perc_MDD <- sum(sym$MDD, na.rm = TRUE) / length(sym$MDD) * 100
 
 #=== Weight change ===
 wtchange <- pheno %>% select(STUDYID, WTCHANGE, WTKILO) %>%
@@ -210,149 +223,4 @@ cov <- covariates %>% select(STUDYID, AGE, SEX, BMI)
 datasets_to_join <- list(cov, dep, sym, com, wtchange, pre, sui, fam , edu, drugs, med, head, fem, well, sideeffs)
 tab <- Reduce(function(x, y) full_join(x, y, by = "STUDYID"), datasets_to_join)
 write.csv(tab, file.path(wkdir, "phenotypes/survey_phenotypes.csv"), row.names = FALSE)
-
-
-######## Proportion of self-responders plot ################
-
-well_modified <- well %>%
-  mutate(across(-STUDYID, ~case_when(
-    . == 0 ~ "Not at all well",
-    . == 1 ~ "Moderately to very well",
-    TRUE ~ NA_character_
-  )))
-
-# Reshape the data to long format
-well_long <- well_modified %>%
-  pivot_longer(-STUDYID, names_to = "Drug", values_to = "Response")
-
-response_proportions <- well_long %>%
-  filter(!is.na(Response)) %>%  # Exclude rows where Response is NA
-  group_by(Drug, Response) %>%
-  summarise(Count = n(), .groups = "drop") %>%
-  group_by(Drug) %>%
-  mutate(Proportion = Count / sum(Count))
-
-write.csv(response_proportions, file.path(wkdir, "pharma_summaries/response_proportions_usage_basis.csv"), row.names = FALSE)
-
-#-- Group by antidepressant for total N
-anti_N <- well_long %>%
-  filter(!is.na(Response)) %>%
-  group_by(Drug) %>%
-  summarise(TotalParticipants = n_distinct(STUDYID), .groups = "drop")
-
-#-- Merge group sizes with self-responders proportions and create drug label with N
-response_N <- left_join(response_proportions, anti_N, by = "Drug") %>%
-  mutate(
-    DrugLabel = paste0(Drug, "\n(N = ", TotalParticipants, ")")
-  )
-
-ordered_drugs <- c("Sertraline\n(N = 9152)", "Escitalopram\n(N = 6996)", "Citalopram\n(N = 3933)", 
-                   "Paroxetine\n(N = 2404)", "Fluoxetine\n(N = 5817)", "Desvenlafaxine\n(N = 4013)",
-                   "Venlafaxine\n(N = 6290)", "Duloxetine\n(N = 3145)", 
-                   "Amitriptyline\n(N = 2498)", "Mirtazapine\n(N = 3058)") 
-
-response_N$DrugLabel <- factor(response_N$DrugLabel, 
-                                    levels = ordered_drugs)
-
-# Create a bar plot
-base_theme <- theme_minimal(base_size = 20) +
-  theme(text = element_text(family = "Helvetica"))
-
-p1 <- ggplot(response_N, aes(x = DrugLabel, y = Proportion, fill = Response)) +
-  geom_bar(stat = "identity", position = position_dodge()) + 
-  #geom_text(aes(label = scales::percent(Proportion, accuracy = 0.1)),
-           # position = position_dodge(), size = 5, angle = 90) +
-  base_theme +
-  scale_y_continuous(labels = scales::percent) +
-  labs(x = "Antidepressants", y = "Percentage of Participants (%)", 
-       title = "Self-responders", fill = "Self-response") +
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, color = "black"),
-        legend.position = "top",
-        legend.title = element_blank()) +
-  scale_fill_brewer(palette = "Set1")
-
-png(file.path(outdir, "SelfResponse_by_antidepressant.png"), bg="white", type=c("cairo"),
-    width=250, height=180, units='mm', res = 500)
-p1
-dev.off()
-
-###### Proportion of discontinuation due to any side-effect #################
-
-stopad <- pheno %>%
-  select(STUDYID, starts_with("STOP"))
-
-stopad_modified <- stopad %>%
-  mutate(across(-STUDYID, ~case_when(
-    . == 1 ~ "Yes",
-    TRUE ~ "No"
-  )))
-
-# Define the columns to rename
-columns_to_rename <- c("STOPSERT" = "Sertraline",
-                       "STOPESCI" = "Escitalopram",
-                       "STOPCITA" = "Citalopram",
-                       "STOPFLUO" = "Fluoxetine",
-                       "STOPPARO" = "Paroxetine",
-                       "STOPDESV" = "Desvenlafaxine",
-                       "STOPVENL" = "Venlafaxine",
-                       "STOPDULO" = "Duloxetine",
-                       "STOPAMIT" = "Amitriptyline",
-                       "STOPMIRT" = "Mirtazapine")
-
-
-# Reshape the data to long format
-stopad_long <- stopad_modified %>%
-  select(STUDYID, all_of(names(columns_to_rename))) %>%
-  rename(!!!setNames(names(columns_to_rename),columns_to_rename)) %>%
-  pivot_longer(-STUDYID, names_to = "Drug", values_to = "Stopped")
-
-stopped_proportions <- stopad_long %>%
-  group_by(Drug, Stopped) %>%
-  summarise(Count = n(), .groups = "drop") %>%
-  group_by(Drug) %>%
-  mutate(Proportion = Count / sum(Count))
-
-write.csv(stopped_proportions, file.path(wkdir, "pharma_summaries/stopped_proportions_usage_basis.csv"), row.names = FALSE)
-
-ordered_drugs <- c("Sertraline", "Escitalopram", "Citalopram", 
-                   "Paroxetine", "Fluoxetine","Desvenlafaxine",
-                   "Venlafaxine", "Duloxetine", 
-                   "Amitriptyline", "Mirtazapine") 
-
-stopped_proportions$Drug <- factor(stopped_proportions$Drug, 
-                                    levels = ordered_drugs)
-
-colors <- brewer.pal(n = 9, name = "Set1")
-third_color <- colors[3]
-fourth_color <- colors[4]
-
-# Create a bar plot
-base_theme <- theme_minimal(base_size = 20) +
-  theme(text = element_text(family = "Helvetica"))
-
-p2 <- ggplot(stopped_proportions, aes(x = Drug, y = Proportion, fill = Stopped)) +
-  geom_bar(stat = "identity", position = position_dodge()) + 
-  #geom_text(aes(label = scales::percent(Proportion, accuracy = 0.1)),
-            #position = position_stack(vjust = 0.5), size = 5, angle = 90) +
-  base_theme +
-  scale_y_continuous(labels = scales::percent) +
-  labs(x = "Antidepressants", y = "Percentage of Participants (N = 23211)", 
-       title = "Reported discontinuation due to side-effects", fill = "Discontinuation") +
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, color = "black"),
-        legend.title = element_blank(),
-        legend.position = "top") +
-  scale_fill_manual(values = c(third_color, fourth_color))
-
-png(file.path(outdir, "Discontinuation_by_antidepressant.png"), bg="white", type=c("cairo"),
-    width=250, height=180, units='mm', res = 500)
-p2
-dev.off()
-
-
-
-
-
-
-
-
 

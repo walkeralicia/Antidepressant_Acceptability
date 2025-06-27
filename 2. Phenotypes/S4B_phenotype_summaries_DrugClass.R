@@ -155,15 +155,15 @@ for (duration in durations){
   #== Write summaries ==
   if (duration == 360){
     wb <- loadWorkbook(file.path("/scratch/user/uqawal15", "All_Results.xlsx"))
-    removeWorksheet(wb, "Table5")
-    addWorksheet(wb, "Table5")
-    writeData(wb, "Table5", transformed_all, rowNames = TRUE)
+    #removeWorksheet(wb, "Table6")
+    addWorksheet(wb, "Table6")
+    writeData(wb, "Table6", transformed_all, rowNames = TRUE)
     saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
   } else {
     wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
-    removeWorksheet(wb, "Table7")
-    addWorksheet(wb, "Table7")
-    writeData(wb, "Table7", transformed_all, rowNames = TRUE)
+    #removeWorksheet(wb, "Table8")
+    addWorksheet(wb, "Table8")
+    writeData(wb, "Table8", transformed_all, rowNames = TRUE)
     saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
   }
   
