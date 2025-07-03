@@ -3,6 +3,7 @@
 #-- Load R libraries
 library(dplyr)
 library(tibble)
+library(openxlsx)
 
 #-- set wkdir
 wkdir="/QRISdata/Q7280/pharmacogenomics/"
@@ -113,7 +114,7 @@ dat_copy <- dat
 
 #-- Genetic data
 pgslist <- system('find /QRISdata/Q7280/pharmacogenomics/pgs -name "*agds_sbrc_gctb_plink2.sscore" -type f -exec ls {} \\;', intern = TRUE)
-pgs_codes <- c("PUD_01", "T2D_03", "CNT_03", "ADHD_01", "BIP_LOO", "BMI_LOO", "MDD_LOO", "MDD_07_hsa04726", "SCZ_02", "Migraine_01", "SBP_01", "ANX_LOO", "ANO_LOO", "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "OCD_2024", "Neuroticism_01", "LRA_01")
+pgs_codes <- c("PUD_01", "T2D_03", "CNT_03", "ADHD_01", "BIP_LOO", "BMI_LOO", "MDD_LOO", "SCZ_02", "Migraine_01", "SBP_01", "ANO_LOO", "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "Neuroticism_01", "LRA_01")
 num <- length(pgs_codes)
 selected_pgs <- pgslist[grep(paste(pgs_codes, collapse = "|"), pgslist)]
 
@@ -123,8 +124,6 @@ ids_to_keep <- as.character(eur$V2)
 
 #-- For each PGS trait fit a linear model with treatment group as the independent variable
 for (j in 1:length(selected_pgs)){
-  
-  if (j != 16){
     #-- Read in PGS file for the selected trait
     pgs_file_path <- selected_pgs[j]
     pgs <- read.table(selected_pgs[j], header=FALSE)
@@ -146,30 +145,6 @@ for (j in 1:length(selected_pgs)){
     pgs_e <- pgs_e %>% select(V2, std_pgs)
     colnames(pgs_e) <- c("V2", paste0(trait, "_pgs_std"))
     dat_copy <- inner_join(dat_copy, pgs_e, by = c("IID" = "V2"))
-  } else {
-    
-    #-- Read in PGS file for the selected trait
-    pgs_file_path <- selected_pgs[j]
-    pgs <- read.table(selected_pgs[j], header=TRUE)
-    
-    #-- Extract PGS trait name
-    pgs_filename <- basename(pgs_file_path)
-    trait_parts <- unlist(strsplit(unlist(strsplit(pgs_filename, "\\."))[1], "_"))
-    trait <- paste0(trait_parts[1], "_", trait_parts[2], "_", trait_parts[3])
-    cat(trait, j, '\n')
-    
-    #-- Filter PGS for Europeans (loss of 806 individuals)
-    ids_to_keep <- as.character(eur$V2)
-    pgs_e <- pgs[pgs$IID %in% ids_to_keep, ]
-    
-    #-- Standardize PGS
-    pgs_e$std_pgs <- scale(pgs_e$SCORESUM) 
-    
-    #-- Join PGS file with ad treatment group data
-    pgs_e <- pgs_e %>% select(IID, std_pgs)
-    colnames(pgs_e) <- c("IID", paste0(trait, "_pgs_std"))
-    dat_copy <- inner_join(dat_copy, pgs_e, by = c("IID" = "IID"))
-  }
 }
 
 
@@ -201,8 +176,8 @@ multinomial_model <- nnet::multinom(
     FATIGUED.x + GUILTY + NOFOCUS + 
     DEATHTHK + APWTCHANGE + SLEEP + MOVEMENT +
     PUD_01_pgs_std + T2D_03_pgs_std + CNT_03_pgs_std + ADHD_01_pgs_std + BIP_LOO_pgs_std + BMI_LOO_pgs_std + Neuroticism_01_pgs_std +
-    MDD_LOO_pgs_std + SCZ_02_pgs_std + Migraine_01_pgs_std + SBP_01_pgs_std + ANX_LOO_pgs_std + ANO_LOO_pgs_std + LRA_01_pgs_std +
-    OCD_2024_pgs_std + CRP_01_pgs_std + UKB_35BM_pgs_std,
+    MDD_LOO_pgs_std + SCZ_02_pgs_std + Migraine_01_pgs_std + SBP_01_pgs_std + ANO_LOO_pgs_std + LRA_01_pgs_std +
+    CRP_01_pgs_std + UKB_35BM_pgs_std,
   data = pgs_atc_full
 )
 
@@ -247,8 +222,8 @@ counts <- pgs_full %>%
 # Use first level as reference category
 multinomial_model <- nnet::multinom(
   DrugClass ~ PUD_01_pgs_std + T2D_03_pgs_std + CNT_03_pgs_std + ADHD_01_pgs_std + BIP_LOO_pgs_std + BMI_LOO_pgs_std + Neuroticism_01_pgs_std +
-    MDD_LOO_pgs_std + SCZ_02_pgs_std + Migraine_01_pgs_std + SBP_01_pgs_std + ANX_LOO_pgs_std + ANO_LOO_pgs_std + LRA_01_pgs_std +
-    OCD_2024_pgs_std + CRP_01_pgs_std + UKB_35BM_pgs_std,
+    MDD_LOO_pgs_std + SCZ_02_pgs_std + Migraine_01_pgs_std + SBP_01_pgs_std + ANO_LOO_pgs_std + LRA_01_pgs_std +
+    CRP_01_pgs_std + UKB_35BM_pgs_std,
   data = pgs_full
 )
 
@@ -282,8 +257,8 @@ df_all <- df_all %>%
 
 
 wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
-addWorksheet(wb, "Table18")
-writeData(wb, "Table18", df_all)
+addWorksheet(wb, "Table17")
+writeData(wb, "Table17", df_all)
 saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
 
 

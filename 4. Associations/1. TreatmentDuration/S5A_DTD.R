@@ -452,14 +452,14 @@ wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
 
 # Medication and class effects
 drug_results <- bind_rows(med_results, class_results)
-removeWorksheet(wb, "Table1")
-addWorksheet(wb, "Table1")
-writeData(wb, "Table1", drug_results)
+#removeWorksheet(wb, "Table2")
+addWorksheet(wb, "Table2")
+writeData(wb, "Table2", drug_results)
 
 # Main results
-removeWorksheet(wb, "Table2")
-addWorksheet(wb, "Table2")
-writeData(wb, "Table2", results_all)
+#removeWorksheet(wb, "Table3")
+addWorksheet(wb, "Table3")
+writeData(wb, "Table3", results_all)
 
 # Auto-adjust column widths for better readability
 for(sheet in names(wb)) {

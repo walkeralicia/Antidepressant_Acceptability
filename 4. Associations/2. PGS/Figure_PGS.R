@@ -12,7 +12,7 @@ library(viridis)
 dodge_width <- 0.8
 
 #-- Read in results in which the dependent variable is quantitative
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table12")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table13")
 
 #-- Drug order
 drug_order <- c("SNRI", "TeCA", "TCA", "BIP+L", "BIP-L", "Various")
@@ -25,9 +25,10 @@ dat_filled <- dat %>%
 dat_ssri <- dat_filled %>% 
   filter(Term != "SSRI" & 
         Reference == "SSRI", 
-         Threshold == "360 days")
+         Threshold == "360 days") %>%
+  mutate(PGS = ifelse(PGS == "MDD", "MD", PGS))
 
-dat_ssri$PGS <- factor(dat_ssri$PGS, levels = rev(c("MDD", "BIP", "SCZ", "ADHD", "ANO", "ANX", "OCD", "Neuroticism",
+dat_ssri$PGS <- factor(dat_ssri$PGS, levels = rev(c("MD", "BIP", "SCZ", "ADHD", "ANO", "ANX", "OCD", "Neuroticism",
                                                 "BMI", "T2D", "SBP", "CNT", "LRA", "Migraine", "PUD", "CRP", "LDL-c")))
 dat_ssri$Term <- factor(dat_ssri$Term, levels = drug_order)
                        
@@ -68,7 +69,7 @@ p <- ggplot(dat_ssri, aes(y = PGS, x = estimate, color = P.value)) +
                 y = PGS, 
                 x = (estimate + (1.96 * `Std..Error`))),
             color = "black",
-            size = 4,
+            size = 5,
             position = position_dodge(width = dodge_width)) +  
   facet_wrap(~Term, nrow = 1, labeller = labeller(Term = med_labels)) +
   ylab("PGS Trait") +
@@ -109,7 +110,7 @@ library(viridis)
 dodge_width <- 0.8
 
 #-- Read in results in which the dependent variable is quantitative
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table13")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table14")
 
 #-- Fill in NA
 dat_filled <- dat %>%

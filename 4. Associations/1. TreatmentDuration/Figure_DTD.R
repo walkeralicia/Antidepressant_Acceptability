@@ -5,12 +5,12 @@ library(readxl)
 library(viridis)
 
 # -- Read in association results
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table2")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table3")
 
 # -- Pre-processing: fill missing values, filter, and categorize in a single pipeline
 processed_data <- dat %>%
   # Fill in NA values
-  fill(Dependent, Independent, Total_N, Total_Cases, Total_Controls, .direction = "down") %>%
+  fill(Dependent, Total_N,Independent, .direction = "down") %>%
   # Filter relevant terms
   filter(!Term %in% c("Intercept")) %>%
   filter(Term != "Age" & Term != "Sex" | 
@@ -19,9 +19,9 @@ processed_data <- dat %>%
   # Select needed columns  
   select(Dependent, Independent, Total_N, Estimate, `Std. Error`, `Pr(>|t|)`, FDR_P, Bonf_P, Sig_FDR, Sig_Bonf, Total_Cases, Total_Controls)
 
-cases <- processed_data %>%
-  filter(!is.na(Total_Cases)) %>%
-  select(Dependent, Independent, Total_Cases, Total_Controls) %>%
+cases <- dat %>%
+  filter(!is.na(Total_N) & !is.na(Total_Cases) & Dependent == "Cumulative Prescription Dispense (days)") %>%
+  select(Independent,Total_Cases, Total_Controls) %>%
   mutate(
     Cases_perc = round(Total_Cases/(Total_Cases+Total_Controls)*100, 0)
   ) %>%
@@ -29,7 +29,7 @@ cases <- processed_data %>%
   
 
 processed_data <- processed_data %>%
-  left_join(cases, by = c("Dependent", "Independent")) %>%
+  left_join(cases, by = c("Independent")) %>%
   # Create label with participant count
   mutate(
     Label = paste0(Independent, " (", Total_N, ";", Cases_perc, "%)"),
@@ -112,8 +112,8 @@ create_plot <- function(data, title, x_limits, show_y_axis = TRUE, show_facet_la
     theme(
       panel.spacing = unit(1, "lines"),
       panel.heights = unit(c(5, 8, 12, 10), "null"),
-      axis.text.x = element_text(color = "black", size = 20),
-      axis.title.x = element_text(color = "black", size = 20, face = "bold"),
+      axis.text.x = element_text(color = "black", size = 18),
+      axis.title.x = element_text(color = "black", size = 17, face = "bold"),
       axis.title.y = element_blank(),
       legend.position = "none"
     )
@@ -146,8 +146,8 @@ create_plot <- function(data, title, x_limits, show_y_axis = TRUE, show_facet_la
 }
 
 # -- Create plots using the function
-p1 <- create_plot(plot_data$TotalPrescriptionDays, "Total AD Dispense", c(-130, 270), TRUE, TRUE)
-p2 <- create_plot(plot_data$NumberOfATC, "AD Diversity", c(-0.25, 0.7), FALSE, FALSE)
+p1 <- create_plot(plot_data$TotalPrescriptionDays, "Cumulative AD Dispense", c(-130, 270), TRUE, TRUE)
+p2 <- create_plot(plot_data$NumberOfATC, "AD Diversity", c(-0.25, 0.8), FALSE, FALSE)
 p3 <- create_plot(plot_data$NumberADClass, "Class Diversity", c(-0.25, 0.4), FALSE, FALSE)
 
 # -- Combine plots
@@ -161,4 +161,4 @@ plots <- plot_grid(
 
 # -- Save combined plot
 ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\1. TreatmentDuration\\Results\\PrescriptionDuration_Associations.png", 
-       plot = plots, device = "png", width = 400, height = 400, units = "mm", dpi = 600)
+       plot = plots, device = "png", width = 400, height = 500, units = "mm", dpi = 600)

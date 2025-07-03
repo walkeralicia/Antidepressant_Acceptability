@@ -1,3 +1,59 @@
+
+#------------ Remove related individuals ---------------------------------
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=8
+#SBATCH --time=1:00:00
+#SBATCH --mem=50G
+#SBATCH --job-name=AGDS_unrelated
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /scratch/user/uqawal15/AGDS_unrelated.stdout
+#SBATCH -e /scratch/user/uqawal15/AGDS_unrelated.stderr
+
+module load plink/2.00a3.6-gcc-11.3.0
+wkdir="/scratch/user/uqawal15"
+bfiledir="/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink"
+cd ${wkdir}
+
+plink2 --bfile ${bfiledir}/imputed_chr1 --king-cutoff 0.0884 --make-bed --out ${wkdir}/AGDS_chr22_unrelated
+
+#------------ 
+
+# Extract the list of individuals that were kept
+cut -f1-2 AGDS_chr22_unrelated.fam > keep_individuals.txt
+
+#----------
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=8
+#SBATCH --time=24:00:00
+#SBATCH --mem=100G
+#SBATCH --job-name=AGDS_remove_related
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH --array=1-22
+#SBATCH -o /scratch/user/uqawal15/AGDS_remove_related_chr%a.stdout
+#SBATCH -e /scratch/user/uqawal15/AGDS_remove_related_chr%a.stderr
+
+# Set the chromosome based on SLURM array index
+chr=${SLURM_ARRAY_TASK_ID}
+
+module load plink/2.00a3.6-gcc-11.3.0
+wkdir="/scratch/user/uqawal15"
+bfiledir="/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink"
+cd ${wkdir}
+
+# Apply this filter to all chromosomes
+for chr in {1..22}; do
+    plink2 --bfile ${bfiledir}/imputed_chr${chr} --keep ${wkdir}/keep_individuals.txt --make-bed --out ${wkdir}/AGDS_unrelated_chr${chr}
+done
+
+
 #---- Create a covariate and phenotype file
 R
 library(dplyr)
@@ -116,13 +172,18 @@ dat <- pheno %>%
     SEX = ifelse(is.na(SEX), "NONE", SEX)
   )
   
-#-- Filter for those of EUR ancestry
+#-- Filter for those of EUR ancestry 14603
 eur <- read.table("/QRISdata/Q5338/Ancestry_analysis/PCA/AGDS_EUR.id")
 dat_eur <- dat %>%
   filter(IID %in% eur$V2)
+  
+#-- For those that are unrelated # 14026
+unrelated <- read.table("/QRISdata/Q7280/pharmacogenomics/keep_individuals.txt", header = FALSE)
+dat_eur_unrelated <- dat_eur %>%
+filter(IID %in% unrelated$V2)
 
 # Create and save covariate file
-dat_eur %>%
+dat_eur_unrelated %>%
   select(FID, IID, AGE, SEX, PC1, PC2, PC3) %>%
   write.table(
     file.path(OUTPUT_DIR, "AD_acceptability_covariates.txt"),
@@ -130,7 +191,7 @@ dat_eur %>%
   )
 
 # Create and save outcome file
-dat_eur %>%
+dat_eur_unrelated %>%
   select(FID, IID, DrugClass, SSRI_Acceptability, SSRI_SNRI_Acceptability, SSRI_Responder, SSRI_SNRI_Responder) %>%
   write.table(
     file.path(OUTPUT_DIR, "AD_acceptability_outcome.txt"),
@@ -139,43 +200,44 @@ dat_eur %>%
 
 
 #-- Check case and control number for each phenotye
-dat_eur %>%
+dat_eur_unrelated %>%
 select(STUDYID, SSRI_Acceptability, AGE, SEX, PC1, PC2, PC3) %>%
 filter(!is.na(AGE) & SEX != "NONE" & !is.na(PC1) & !is.na(PC2) & !is.na(PC3)) %>%
 count(SSRI_Acceptability)
   SSRI_Acceptability    n
-1                  0 4722
-2                  1 3566
-3                 NA 1541
+1                  0 4561
+2                  1 3423
+3                 NA 1479
 
-dat_eur %>%
+dat_eur_unrelated %>%
 select(STUDYID, SSRI_SNRI_Acceptability, AGE, SEX, PC1, PC2, PC3) %>%
 filter(!is.na(AGE) & SEX != "NONE" & !is.na(PC1) & !is.na(PC2) & !is.na(PC3)) %>%
 count(SSRI_SNRI_Acceptability)
   SSRI_SNRI_Acceptability    n
-1                       0 2348
-2                       1 5774
-3                      NA 1707
+1                       0 2270
+2                       1 5554
+3                      NA 1639
 
-dat_eur %>%
+dat_eur_unrelated %>%
 select(STUDYID, SSRI_Responder, AGE, SEX, PC1, PC2, PC3) %>%
 filter(!is.na(AGE) & SEX != "NONE" & !is.na(PC1) & !is.na(PC2) & !is.na(PC3)) %>%
 count(SSRI_Responder)
-
   SSRI_Responder    n
-1              0 2744
-2              1 6739
-3             NA  346
+1              0 2653
+2              1 6474
+3             NA  336
 
-dat_eur %>%
+dat_eur_unrelated %>%
 select(STUDYID, SSRI_SNRI_Responder, AGE, SEX, PC1, PC2, PC3) %>%
 filter(!is.na(AGE) & SEX != "NONE" & !is.na(PC1) & !is.na(PC2) & !is.na(PC3)) %>%
 count(SSRI_SNRI_Responder)
 
   SSRI_SNRI_Responder    n
-1                   0  935
-2                   1 8548
-3                  NA  346
+1                   0  904
+2                   1 8223
+3                  NA  336
+
+
 
 #--------------- Run SSRI acceptability GWAS using PLINK2 (common variants)
 
@@ -197,11 +259,11 @@ c=${SLURM_ARRAY_TASK_ID}
 
 module load plink/2.00a3.6-gcc-11.3.0
 wkdir="/scratch/user/uqawal15"
-bfiledir="/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink"
+bfiledir="/QRISdata/Q7280/pharmacogenomics/genotypes/"
 cd ${wkdir}
 
 plink2 \
---bfile ${bfiledir}/imputed_chr${c} \
+--bfile ${bfiledir}/AGDS_unrelated_chr${c} \
 --pheno ${wkdir}/AD_acceptability_outcome.txt \
 --pheno-name SSRI_Acceptability \
 --1 \
@@ -215,6 +277,7 @@ plink2 \
 #---------------------------------------------
 
 #--------------- Run SSRI+SNRI acceptability GWAS using PLINK2 (common variants)
+
 
 #!/bin/bash
 #SBATCH --nodes=1
@@ -234,11 +297,11 @@ c=${SLURM_ARRAY_TASK_ID}
 
 module load plink/2.00a3.6-gcc-11.3.0
 wkdir="/scratch/user/uqawal15"
-bfiledir="/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink"
+bfiledir="/QRISdata/Q7280/pharmacogenomics/genotypes/"
 cd ${wkdir}
 
 plink2 \
---bfile ${bfiledir}/imputed_chr${c} \
+--bfile ${bfiledir}/AGDS_unrelated_chr${c} \
 --pheno ${wkdir}/AD_acceptability_outcome.txt \
 --pheno-name SSRI_SNRI_Acceptability \
 --1 \
@@ -269,11 +332,11 @@ c=${SLURM_ARRAY_TASK_ID}
 
 module load plink/2.00a3.6-gcc-11.3.0
 wkdir="/scratch/user/uqawal15"
-bfiledir="/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink"
+bfiledir="/QRISdata/Q7280/pharmacogenomics/genotypes/"
 cd ${wkdir}
 
 plink2 \
---bfile ${bfiledir}/imputed_chr${c} \
+--bfile ${bfiledir}/AGDS_unrelated_chr${c} \
 --pheno ${wkdir}/AD_acceptability_outcome.txt \
 --pheno-name SSRI_Responder \
 --1 \
@@ -304,11 +367,11 @@ c=${SLURM_ARRAY_TASK_ID}
 
 module load plink/2.00a3.6-gcc-11.3.0
 wkdir="/scratch/user/uqawal15"
-bfiledir="/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink"
+bfiledir="/QRISdata/Q7280/pharmacogenomics/genotypes/"
 cd ${wkdir}
 
 plink2 \
---bfile ${bfiledir}/imputed_chr${c} \
+--bfile ${bfiledir}/AGDS_unrelated_chr${c} \
 --pheno ${wkdir}/AD_acceptability_outcome.txt \
 --pheno-name SSRI_SNRI_Responder \
 --1 \
@@ -373,14 +436,16 @@ calculate_lambda <- function(pvals) {
 }
 
 # Path to GWAS results
-input_file <- "/scratch/user/uqawal15/SSRI_Acceptability_GWAS.txt"
-output_dir <- "/scratch/user/uqawal15"
+input_file <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/SSRI_Acceptability_GWAS.txt"
+output_dir <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability"
 gwas <- fread(input_file, fill = TRUE)
               
 gwas_cleaned <- gwas %>%
   mutate(P = as.numeric(P)) %>%
   filter(!is.na(P)) %>%
   arrange(P)
+  
+top_snps <- gwas_cleaned[gwas_cleaned$P < 5e-6, ]
 
 # Make the Manhattan plot
 png(file.path(output_dir, "SSRI_Acceptability_GWAS_manhattan.png"), 
@@ -397,6 +462,7 @@ manhattan(gwas_cleaned,
           p="P",
           cex = 0.6,
           cex.axis = 0.8,
+          highlight = top_snps$ID,
           suggestiveline = -log10(5e-6),
           genomewideline = -log10(5e-8),
           main = "SSRI Acceptability GWAS")
@@ -459,14 +525,14 @@ sig <- cojo_temp %>%
     filter(P < 0.000005) %>%
     arrange(P)
     
-wb <- createWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
-#removeWorksheet(wb, "Table17")
-addWorksheet(wb, "Table17")
-writeData(wb, "Table17", sig)
+wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
+#removeWorksheet(wb, "Table19")
+addWorksheet(wb, "Table19")
+writeData(wb, "Table19", sig)
 saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
 
 # Lambda
-lambda <- calculate_lambda(gwas_cleaned$P) # 1.006742
+lambda <- calculate_lambda(gwas_cleaned$P) # 0.9992045
 
 #---------------------------- SSRI+SNRI Acceptability ------------------------------------
 
@@ -484,14 +550,16 @@ calculate_lambda <- function(pvals) {
 }
 
 # Path to GWAS results
-input_file <- "/scratch/user/uqawal15/SSRI_SNRI_Acceptability_GWAS.txt"
-output_dir <- "/scratch/user/uqawal15"
+input_file <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/SSRI_SNRI_Acceptability_GWAS.txt"
+output_dir <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability"
 gwas <- fread(input_file, fill = TRUE)
 gwas_cleaned <- gwas %>%
   mutate(P = as.numeric(P)) %>%
   filter(!is.na(P)) %>%
   arrange(P)
-              
+
+top_snps <- gwas_cleaned[gwas_cleaned$P < 5e-6, ]
+            
 # Make the Manhattan plot
 png(file.path(output_dir, "SSRI_SNRI_Acceptability_GWAS_manhattan.png"), 
     bg = "white", 
@@ -507,9 +575,10 @@ manhattan(gwas_cleaned,
           p="P",
           cex = 0.6,
           cex.axis = 0.8,
+          highlight = top_snps$ID,
           suggestiveline = -log10(5e-6),
           genomewideline = -log10(5e-8),
-          main = "SSRI+SNRI Acceptability GWAS")
+          main = "SSRI/SNRI Acceptability GWAS")
 dev.off()
 
 # Make the qqplot
@@ -520,7 +589,7 @@ png(file.path(output_dir, "SSRI_SNRI_Acceptability_GWAS_qqplot.png"),
     height = 1800,
     res = 300)
 
-qq(gwas_cleaned$P, main = "QQ Plot: SSRI+SNRI Acceptability")
+qq(gwas_cleaned$P, main = "QQ Plot: SSRI/SNRI Acceptability")
 dev.off()
 
 #-- Convert to COJO format
@@ -553,7 +622,7 @@ cojo_temp <- gwas_cleaned %>%
 #-- Save file for LD clumping
 ld_format <- cojo_temp %>%
 select(SNP, CHR, BP = POS, P)
-fwrite(ld_format, file.path(output_dir, "SSRI_SNRI_Acceptability_GWAS.temp"), sep = "\t")
+fwrite(ld_format, file.path(output_dir, "SSRI_SNRI_Acceptability.temp"), sep = "\t")
 
 #-- Save COJO format as tab-delimited
 cojo_format <- cojo_temp %>%
@@ -575,7 +644,7 @@ writeData(wb, "Table18", sig)
 saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
 
 # Lambda
-lambda <- calculate_lambda(gwas_cleaned$P) # 1.001765
+lambda <- calculate_lambda(gwas_cleaned$P) # 0.9974256
 
 
 #---------------------------- SSRI self-report efficacy ------------------------------------
@@ -681,13 +750,13 @@ sig <- cojo_temp %>%
     arrange(P)
     
 wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
-#removeWorksheet(wb, "Table19")
-addWorksheet(wb, "Table19")
-writeData(wb, "Table19", sig)
+#removeWorksheet(wb, "Table21")
+addWorksheet(wb, "Table21")
+writeData(wb, "Table21", sig)
 saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
 
 # Lambda
-lambda <- calculate_lambda(gwas_cleaned$P) # 1.009734
+lambda <- calculate_lambda(gwas_cleaned$P) # 1.004621
 
 #---------------------------- SSRI+SNRI self-report efficacy ------------------------------------
 
@@ -705,8 +774,8 @@ calculate_lambda <- function(pvals) {
 }
 
 # Path to GWAS results
-input_file <- "/scratch/user/uqawal15/SSRI_SNRI_Responder_GWAS.txt"
-output_dir <- "/scratch/user/uqawal15"
+input_file <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Responder/SSRI_SNRI_Responder_GWAS.txt"
+output_dir <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Responder"
 gwas <- fread(input_file, fill = TRUE)
               
 gwas_cleaned <- gwas %>%
@@ -731,7 +800,7 @@ manhattan(gwas_cleaned,
           cex.axis = 0.8,
           suggestiveline = -log10(5e-6),
           genomewideline = -log10(5e-8),
-          main = "SSRI+SNRI Self-report Efficacy GWAS")
+          main = "SSRI/SNRI Self-report Efficacy GWAS")
 dev.off()
 
 # Make the qqplot
@@ -742,7 +811,7 @@ png(file.path(output_dir, "SSRI_SNRI_Response_GWAS_qqplot.png"),
     height = 1800,
     res = 300)
 
-qq(gwas_cleaned$P, main = "QQ Plot: SSRI+SNRI Self-report Efficacy")
+qq(gwas_cleaned$P, main = "QQ Plot: SSRI/SNRI Self-report Efficacy")
 dev.off()
 
 
@@ -798,7 +867,7 @@ writeData(wb, "Table20", sig)
 saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
 
 # Lambda
-lambda <- calculate_lambda(gwas_cleaned$P) # 1.00191
+lambda <- calculate_lambda(gwas_cleaned$P) # 0.9992558
 
 
 ############ PLINK LD CLUMPING ################################
@@ -816,23 +885,24 @@ lambda <- calculate_lambda(gwas_cleaned$P) # 1.00191
 #SBATCH --partition=general
 #SBATCH --account=a_mcrae
 #SBATCH --array=1-22
-#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/clumped_SSRI_Acceptability_chr%a.stdout
-#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/clumped_SSRI_Acceptability_chr%a.stderr
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/clumped/clumped_SSRI_Acceptability_chr%a.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/clumped/clumped_SSRI_Acceptability_chr%a.stderr
 
 # Set the chromosome based on SLURM array index
 c=${SLURM_ARRAY_TASK_ID}
 
 wkdir="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/"
-bfiledir="/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink"
+outdir="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/clumped"
+bfiledir="/QRISdata/Q7280/pharmacogenomics/genotypes/"
 cd ${wkdir}
 
 /home/uqawal15/bin/plink1.9/plink \
-  --bfile ${bfiledir}/imputed_chr${c} \
+  --bfile ${bfiledir}/AGDS_unrelated_chr${c} \
   --clump ${wkdir}/SSRI_Acceptability_GWAS.temp \
   --clump-p1 5e-8 \
-  --clump-r2 0.5 \
+  --clump-r2 0.1 \
   --clump-kb 250 \
-  --out clumped_snps_SSRI_Acceptability_chr${c}
+  --out ${outdir}/clumped_snps_SSRI_Acceptability_chr${c}
 
 
 #---- SSRI and SNRI Acceptability
@@ -852,163 +922,92 @@ cd ${wkdir}
 
 # Set the chromosome based on SLURM array index
 c=${SLURM_ARRAY_TASK_ID}
-
+r qu
 wkdir="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/"
-bfiledir="/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink"
+bfiledir="/QRISdata/Q7280/pharmacogenomics/genotypes/"
 cd ${wkdir}
 
 /home/uqawal15/bin/plink1.9/plink \
-  --bfile ${bfiledir}/imputed_chr${c} \
+  --bfile ${bfiledir}/AGDS_unrelated_chr${c} \
   --clump ${wkdir}/SSRI_SNRI_Acceptability_GWAS.temp \
   --clump-p1 5e-8 \
-  --clump-r2 0.5 \
+  --clump-r2 0.1 \
   --clump-kb 250 \
   --out clumped_snps_SSRI_SNRI_Acceptability_chr${c}
   
-#---- SSRI self-report efficacy
+#-------------- mBAT-combo on SSRI and SNRI Acceptability 
 
 #!/bin/bash
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
+#SBATCH --job-name=mBAT_all_genes_SSRI_SNRI_Acceptability
 #SBATCH --time=24:00:00
-#SBATCH --mem=100G
-#SBATCH --job-name=clumped_SSRI_Acceptability
+#SBATCH --nodes=1
+#SBATCH --mem=150G
 #SBATCH --partition=general
 #SBATCH --account=a_mcrae
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=6
 #SBATCH --array=1-22
-#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/clumped_SSRI_Acceptability_chr%a.stdout
-#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/clumped_SSRI_Acceptability_chr%a.stderr
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/mBAT/mBAT_all_genes_SSRI_SNRI_Acceptability_chr%a.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/mBAT/mBAT_all_genes_SSRI_SNRI_Acceptability_chr%a.stderr
 
-# Set the chromosome based on SLURM array index
+# Define chromosome from SLURM array task ID
 c=${SLURM_ARRAY_TASK_ID}
 
-wkdir="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/"
-bfiledir="/QRISdata/Q5338/Genotypes/AGDS_R11_TOPMedr2/Plink"
-cd ${wkdir}
+# Define paths
+mbat_version="/home/uqawal15/bin/gcta64_1.94.4/gcta64"
+glist="/QRISdata/Q5059/mBAT/mBAT-main/hg19.pos.ensgid.all.gene.loc.extendedMHCexcluded"
+bfiledir="/QRISdata/Q7280/pharmacogenomics/genotypes/"
+wkdir="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability"
+# /scratch/project/genetic_data_analysis/uqali4/Repseudo_RNA.gene.loc.format.hT.autosome (brain expressed genes)
 
-/home/uqawal15/bin/plink1.9/plink \
-  --bfile ${bfiledir}/imputed_chr${c} \
-  --clump ${wkdir}/SSRI_Acceptability_GWAS.temp \
-  --clump-p1 5e-8 \
-  --clump-r2 0.5 \
-  --clump-kb 250 \
-  --out clumped_snps_SSRI_Acceptability_chr${c}
-
-
-##############################################################################
-
-
-# Checking direction of effect for certain SNPs within rTMS study
-
-# load libraries
-library(data.table)
-library(qqman)
-library(dplyr)
-
-# Path to your GWAS results
-input_file <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder_gwas_concat.txt"
-output_dir <- "/scratch/user/uqawal15/"
-
-gwas <- fread(input_file, 
-              fill = TRUE)
-              
-gwas_cleaned <- gwas %>%
-  mutate(P = as.numeric(P)) %>%
-  filter(!is.na(P))
-  
-sum_stats <- gwas_cleaned %>%
-select(SNP = ID, P)
-fwrite(sum_stats, file.path(output_dir, "SSRI_Responder_gwas_sumstats.txt"), sep = "\t")
-
-# Example data frame
-rTMS_df <- data.frame(
-  SNP_rTMS = c("rs960995", "rs17164813", "rs8035452", 
-  "rs595562", "rs4648426", "rs12487861", 
-  "rs198475", "rs560681", "rs11265485", 
-  "rs1934115", "rs872994", "rs5995416", 
-  "rs2189698", "rs4243296", "rs6899975",
-  "rs1014129", "rs626904", "rs17673232",
-  "rs11942069", "rs447347", "rs2271926",
-  "rs4646515", "rs229526", "rs373521",
-  "rs1283468", "rs11956034"),
-  logOR_rTMS = c(log(0.18), log(0.173), log(7.25),
-  log(0.1603), log(0.1489), log(16),
-  log(0.1489), log(0.09502), log(0.08403),
-  log(0.04528), log(0.1769), log(5.61),
-  log(0.1839), log(0.1769), log(0.1729),
-  log(0.1407), log(0.1674), log(0.07451),
-  log(0.1489), log(0.1654), log(0.1674),
-  log(0.2503), log(0.1324), log(0.1963),
-  log(0.07051), log(0.09502)),
-  A1_rTMS = c("G", "A", "G",
-  "G", "G", "A",
-  "A", "G", "G",
-  "C", "A", "A",
-  "C", "G", "A",
-  "A", "A", "A",
-  "A", "A", "G",
-  "G", "G", "A",
-  "A", "A")
-)
-
-mine_df <- gwas_cleaned %>%
-  filter(ID %in% rTMS_df$SNP_rTMS) %>%
-  mutate(logOR_mine = log(OR)) %>%
-  select(
-    SNP_mine = ID,
-    logOR_mine,
-    A1_mine = A1
-  )
-
-both_df <- left_join(rTMS_df, mine_df, by = c("SNP_rTMS" = "SNP_mine"))
+# Run mBAT for chromosome
+$mbat_version \
+--bfile ${bfiledir}/AGDS_unrelated_chr${c} \
+--mBAT-combo ${wkdir}/SSRI_SNRI_Acceptability_GWAS.ma \
+--mBAT-gene-list ${glist} \
+--diff-freq 0.2 \
+--mBAT-wind 50 \
+--mBAT-svd-gamma 0.9 \
+--mBAT-write-snpset \
+--mBAT-print-all-p \
+--out ${wkdir}/mBAT/mBAT_all_genes_SSRI_SNRI_Acceptability_chr${c}  \
+--thread-num 6
 
 
-# Align directions
-both_df$aligned_logOR_rTMS <- ifelse(both_df$A1_mine != both_df$A1_rTMS,
-                                 -both_df$logOR_rTMS,
-                                 both_df$logOR_rTMS)
+#-------------- mBAT-combo on SSRI Acceptability 
 
-# Plot
-outdir = "/scratch/user/uqawal15"
-png(
-  filename = file.path(outdir, "rTMS_effect_size_comparisons.png"),
-  width = 250, height = 200, units = 'mm',
-  bg = "white", res = 600, type = c("cairo")
-)
-plot(both_df$logOR_mine, both_df$aligned_logOR_rTMS,
-     xlab = "log(OR) - SSRI Acceptability Study",
-     ylab = "log(OR) - rTMS Study (Aligned)",
-     main = "Effect Size Comparison",
-     pch = 19)
-abline(0, 1, col = "blue", lty = 2)
-dev.off()
+#!/bin/bash
+#SBATCH --job-name=mBAT_all_genes_SSRI_Acceptability
+#SBATCH --time=24:00:00
+#SBATCH --nodes=1
+#SBATCH --mem=150G
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=6
+#SBATCH --array=1-22
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/mBAT/mBAT_all_genes_SSRI_Acceptability_chr%a.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/mBAT/mBAT_all_genes_SSRI_Acceptability_chr%a.stderr
 
+# Define chromosome from SLURM array task ID
+c=${SLURM_ARRAY_TASK_ID}
 
-# alignd SNPs 
-both_df$direction_match <- sign(both_df$logOR_mine) == sign(both_df$aligned_logOR_rTMS)
+# Define paths
+mbat_version="/home/uqawal15/bin/gcta64_1.94.4/gcta64"
+glist="/QRISdata/Q5059/mBAT/mBAT-main/hg19.pos.ensgid.all.gene.loc.extendedMHCexcluded"
+bfiledir="/QRISdata/Q7280/pharmacogenomics/genotypes/"
+wkdir="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability"
+# /scratch/project/genetic_data_analysis/uqali4/Repseudo_RNA.gene.loc.format.hT.autosome (brain expressed genes)
 
-# View how many align
-table(both_df$direction_match)
-
-# Show which SNPs align
-aligned_snps <- both_df[both_df$direction_match == TRUE, "SNP_rTMS"]
-aligned_snps
-
-[1] "rs960995"  "rs17164813" "rs11265485" "rs1934115"  "rs872994"
- [6] "rs626904"   "rs17673232" "rs11942069" "rs229526"   "rs11956034"
-
-
-# ZNF471, THSD7A, LY9, LOC, LOC, LHFPL6, GTDC1, GRID2, EXOSC7, ADAMTS2
-
-gwas_cleaned %>% filter(
-  ID %in% aligned_snps
-)
-
-only one (ZNF471) reached suggestive significance (6.29500e-08)
-
-
-
-
-
-
+# Run mBAT for chromosome
+$mbat_version \
+--bfile ${bfiledir}/AGDS_unrelated_chr${c} \
+--mBAT-combo ${wkdir}/SSRI_Acceptability_GWAS.ma \
+--mBAT-gene-list ${glist} \
+--diff-freq 0.2 \
+--mBAT-wind 50 \
+--mBAT-svd-gamma 0.9 \
+--mBAT-write-snpset \
+--mBAT-print-all-p \
+--out ${wkdir}/mBAT/mBAT_all_genes_SSRI_Acceptability_chr${c}  \
+--thread-num 6

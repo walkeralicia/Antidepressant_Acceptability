@@ -9,7 +9,7 @@ custom_colors <- c("No" = "black",
 #-- Antidepressant Treatment Class Level analysis
 
 #-- BMI unadjusted
-bmi_unadj <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table10")
+bmi_unadj <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table9")
 bmi_unadj <- bmi_unadj %>%
   rename(
     Threshold = threshold, 
@@ -33,7 +33,7 @@ bmi_unadj <- bmi_unadj %>%
   filter(Term != "SSRI")
 
 #-- BMI adjusted by BMI PGS
-bmi_adj <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table14")
+bmi_adj <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table15")
 bmi_adj <- bmi_adj %>%
   fill(Outcome, Threshold, ReferenceTerm, .direction = "down") %>% 
   filter(Term != "sd_pgs" & Term != "(Intercept)") %>%

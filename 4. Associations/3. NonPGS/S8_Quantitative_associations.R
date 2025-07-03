@@ -309,18 +309,18 @@ wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
 if (!is.null(class_formatted)) {
   class_renamed <- class_formatted %>%
     mutate(outcome = recode(outcome, !!!rename_mapping))
-  removeWorksheet(wb, "Table10")
-  addWorksheet(wb, "Table10")
-  writeData(wb, "Table10", class_renamed)
+  #removeWorksheet(wb, "Table9")
+  addWorksheet(wb, "Table9")
+  writeData(wb, "Table9", class_renamed)
 }
 
 # Process and save drug results
 if (!is.null(drug_formatted)) {
   drug_renamed <- drug_formatted %>%
     mutate(outcome = recode(outcome, !!!rename_mapping))
-  removeWorksheet(wb, "Table11")
-  addWorksheet(wb, "Table11")
-  writeData(wb, "Table11", drug_renamed)
+  #removeWorksheet(wb, "Table10")
+  addWorksheet(wb, "Table10")
+  writeData(wb, "Table10", drug_renamed)
 }
 
 saveWorkbook(wb, file.path(output_dir, "All_Results.xlsx"), overwrite = TRUE)

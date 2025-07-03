@@ -16,8 +16,8 @@ eur_ids <- as.character(eur$X2)
 
 # -- Find PGS files
 pgs_codes <- c("PUD_01", "T2D_03", "CNT_03", "ADHD_01", "BIP_LOO", "BMI_LOO", "MDD_LOO", 
-               "SCZ_02", "Migraine_01", "SBP_01", "ANX_LOO", "ANO_LOO", 
-               "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "OCD_2024", "Neuroticism_01", "LRA_01")
+               "SCZ_02", "Migraine_01", "SBP_01", "ANO_LOO", 
+               "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "Neuroticism_01", "LRA_01")
 pgslist <- system('find /QRISdata/Q7280/pharmacogenomics/pgs -name "*agds_sbrc_gctb_plink2.sscore" -type f -exec ls {} \\;', intern = TRUE)
 selected_pgs <- pgslist[grep(paste(pgs_codes, collapse = "|"), pgslist)]
 
@@ -174,11 +174,11 @@ process_and_add_to_workbook <- function(data_type) {
   if (data_type == "class") {
     df <- class_EX_labeled %>%
       rename(Term = DrugClass)
-    sheet_name <- "Table12"
+    sheet_name <- "Table13"
   } else {
     df <- EX_labeled %>%
       rename(Term = DrugName)
-    sheet_name <- "Table13" 
+    sheet_name <- "Table14" 
   }
   
   # Calculate FDR and Bonferroni p-values

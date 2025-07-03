@@ -4,7 +4,7 @@ library(cowplot)
 library(readxl)
 
 # -- Read in association results and process data in a single pipeline
-processed_data <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table3") %>%
+processed_data <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table4") %>%
   # Fill in NA values
   fill(Analysis, Dependent, PGS, .direction = "down") %>%
   # Filter for BIP included
@@ -49,7 +49,7 @@ create_plot <- function(data, title, x_offset = 0.01, show_y_axis = TRUE) {
   
   p <- ggplot(data, aes(y = PGS, x = estimate)) +
     geom_point(position = position_dodge(width = dodge_width), 
-               size = 4, color = "#2C7FB8", shape = 18) +  
+               size = 3, color = "#2C7FB8", shape = 18) +  
     geom_errorbar(aes(xmin = estimate - (1.96 * std.error), 
                       xmax = estimate + (1.96 * std.error)), 
                   position = position_dodge(width = dodge_width), 
@@ -69,14 +69,14 @@ create_plot <- function(data, title, x_offset = 0.01, show_y_axis = TRUE) {
       panel.spacing = unit(1, "lines"),
       panel.heights = unit(c(5, 8, 12, 10), "null"),
       axis.text.x = element_text(color = "black", size = BASE_SIZE + 1),
-      axis.title.x = element_text(color = "black", size = BASE_SIZE + 2, face = "bold"),
+      axis.title.x = element_text(color = "black", size = BASE_SIZE, face = "bold"),
       legend.position = "none"
     )
   
   # Configure y-axis display based on parameter
   if (show_y_axis) {
     p <- p + 
-      ylab("PGS") + 
+      ylab("Polygenic Risk Scores") + 
       theme(
         axis.text.y = element_text(color = "black", size = BASE_SIZE + 1),
         axis.title.y = element_text(color = "black", size = BASE_SIZE + 2, face = "bold")
@@ -99,7 +99,7 @@ x_offset1 <- max(plot_data$duration$estimate + 1.96 * plot_data$duration$std.err
 x_offset2 <- max(plot_data$diversity$estimate + 1.96 * plot_data$diversity$std.error, na.rm = TRUE) * 0.15
 x_offset3 <- max(plot_data$class_diversity$estimate + 1.96 * plot_data$class_diversity$std.error, na.rm = TRUE) * 0.15
 
-p1 <- create_plot(plot_data$duration, "Total AD Dispense", x_offset1, TRUE)
+p1 <- create_plot(plot_data$duration, "Cumulative AD Dispense", x_offset1, TRUE)
 p2 <- create_plot(plot_data$diversity, "AD Diversity", x_offset2, FALSE)
 p3 <- create_plot(plot_data$class_diversity, "Class Diversity", x_offset3, FALSE)
 
@@ -109,7 +109,7 @@ plots <- plot_grid(
   nrow = 1,
   align = 'h',
   axis = 'tb',
-  rel_widths = c(2, 1, 1)
+  rel_widths = c(1.8, 1, 1)
 )
 
 # -- Save combined plot

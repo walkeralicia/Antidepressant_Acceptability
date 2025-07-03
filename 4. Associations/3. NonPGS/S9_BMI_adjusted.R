@@ -166,7 +166,7 @@ safe_add_worksheet <- function(wb, sheet_name, data_to_write) {
   TRUE
 }
 
-safe_add_worksheet(wb, "Table14", class_results_final)
-safe_add_worksheet(wb, "Table15", drug_results_final)
+safe_add_worksheet(wb, "Table15", class_results_final)
+safe_add_worksheet(wb, "Table16", drug_results_final)
 
 saveWorkbook(wb, wb_path, overwrite = TRUE)

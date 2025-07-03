@@ -739,7 +739,7 @@ Rscript  /QRISdata/Q7280/pharmacogenomics/pgs/sumstats/cojo_format_v8.R  \
   --pvalue P  \
   --beta  b  \
   --se SE \
-  --samplesize  3566,4722
+  --samplesize  3423,4561
 
 #-- GCTB QC and Impute
 
@@ -837,7 +837,7 @@ Rscript  /QRISdata/Q7280/pharmacogenomics/pgs/sumstats/cojo_format_v8.R  \
   --pvalue P  \
   --beta  b  \
   --se SE \
-  --samplesize  5774,2348
+  --samplesize  5554,2270
   
 #-- GCTB QC and Impute
 
@@ -938,7 +938,7 @@ Rscript  /QRISdata/Q7280/pharmacogenomics/pgs/sumstats/cojo_format_v8.R  \
   --pvalue P  \
   --beta  b  \
   --se SE \
-  --samplesize  6739,2744
+  --samplesize  6474,2653
 
 #-- GCTB QC and Impute
 
@@ -1039,7 +1039,7 @@ Rscript  /QRISdata/Q7280/pharmacogenomics/pgs/sumstats/cojo_format_v8.R  \
   --pvalue P  \
   --beta  b  \
   --se SE \
-  --samplesize  8548,934
+  --samplesize  8223,904
   
   
 #-- GCTB QC and Impute

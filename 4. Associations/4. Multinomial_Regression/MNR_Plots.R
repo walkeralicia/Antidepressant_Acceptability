@@ -10,7 +10,7 @@ library(viridis)
 library(readxl)
 
 #-- Load data
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table18") %>%
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table17") %>%
   fill(Model, y.level, .direction = "down") %>%
   filter(Model == "Self Report Predictors") %>%
   filter(term != "PDMD")
@@ -45,10 +45,10 @@ p1 <- ggplot(plot_data, aes(x = estimate, y = reorder(term, estimate), color = p
   theme(
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5),
-    strip.text = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 12),
     panel.grid.minor = element_blank(),
     legend.position = "right",
-    axis.text.y = element_text(color = "black"),
+    axis.text.y = element_text(color = "black", size = 12),
     axis.text.x = element_text(color = "black")
   )
 
@@ -56,7 +56,7 @@ p1 <- ggplot(plot_data, aes(x = estimate, y = reorder(term, estimate), color = p
 #Note: For continuous predictors (_scaled), OR represents\nthe change in odds for a 1 SD increase in the predictor
 #==================== Include PGS as Predictors =====================
 #-- Load data
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet ="Table18") %>%
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet ="Table17") %>%
   fill(Model, y.level, .direction = "down") %>%
   filter(Model == "All Predictors")
 
@@ -91,10 +91,10 @@ p3 <- ggplot(plot_data, aes(x = estimate, y = reorder(term, estimate), color = p
   theme(
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5),
-    strip.text = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 12),
     panel.grid.minor = element_blank(),
     legend.position = "right",
-    axis.text.y = element_text(color = "black"),
+    axis.text.y = element_text(color = "black", size = 12),
     axis.text.x = element_text(color = "black")
   ) 
 
@@ -103,7 +103,7 @@ p3 <- ggplot(plot_data, aes(x = estimate, y = reorder(term, estimate), color = p
 #============= Only PGS as Predictors ====================
 
 #-- Load data
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet ="Table18") %>%
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet ="Table17") %>%
   fill(Model, y.level, .direction = "down") %>%
   filter(Model == "PGS Predictors")
 
@@ -137,10 +137,10 @@ p2 <- ggplot(plot_data, aes(x = estimate, y = reorder(term, estimate), color = p
   theme(
     plot.title = element_text(face = "bold", hjust = 0.5),
     plot.subtitle = element_text(hjust = 0.5),
-    strip.text = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 12),
     panel.grid.minor = element_blank(),
     legend.position = "right",
-    axis.text.y = element_text(color = "black"),
+    axis.text.y = element_text(color = "black", size = 12),
     axis.text.x = element_text(color = "black")
   )
 
