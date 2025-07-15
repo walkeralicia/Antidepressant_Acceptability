@@ -60,7 +60,7 @@ run_models <- function(pgs_data, trait, ad_data, duration) {
   
   # Get unique drugs and classes
   drugs <- unique(pgs_atc$DrugName)
-  classes <- c("SSRI", "SNRI", "TCA", "TeCA", "BIP+L", "BIP-L", "Various")
+  classes <- c(unique(pgs_atc$DrugClass), "BIP+L", "BIP-L", "Various")
   
   # Function to create model results
   create_model_results <- function(model_data, reference_col, reference_val, grouping_col) {
@@ -144,7 +144,7 @@ results_lm <- all_results %>%
 
 # Calculate participant counts per threshold/PGS combination
 num_dependent <- results_lm %>%
-  filter(Reference == "SSRI:Escitalopram") %>%
+  filter(Reference == "AIIa:Escitalopram") %>%
   group_by(Threshold, PGS) %>%
   summarise(Total_N = sum(Group_N, na.rm = TRUE), .groups = "drop")
 
@@ -159,7 +159,7 @@ results_class_lm <- all_class_results %>%
 
 # Calculate participant counts per threshold/PGS combination
 class_num_dependent <- results_class_lm %>%
-  filter(Reference == "SSRI") %>%
+  filter(Reference == "AIIa") %>%
   group_by(Threshold, PGS) %>%
   summarise(Total_N = sum(Group_N, na.rm = TRUE), .groups = "drop")
 

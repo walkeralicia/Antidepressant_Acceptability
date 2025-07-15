@@ -6,22 +6,9 @@ library(data.table)
 wkdir <- "/QRISdata/Q7280/pharmacogenomics"
 
 #-- Define ATC mapping once at the beginning
-atc_mapping <- list(
-  # SSRIs
-  "N06AB03" = "SSRI", # Fluoxetine
-  "N06AB04" = "SSRI", # Citalopram
-  "N06AB05" = "SSRI", # Paroxetine
-  "N06AB06" = "SSRI", # Sertraline
-  "N06AB10" = "SSRI", # Escitalopram
-  # SNRIs
-  "N06AX16" = "SNRI", # Venlafaxine
-  "N06AX21" = "SNRI", # Duloxetine
-  "N06AX23" = "SNRI", # Desvenlafaxine
-  # TCAs
-  "N06AA09" = "TCA",  # Amitriptyline
-  # TeCA
-  "N06AX11" = "TeCA" # Mirtazapine
-)
+source("/QRISdata/Q7280/pharmacogenomics/Drug_Reference/Drug_Reference_Table.R")
+atc_mapping <- setNames(as.list(drug_ref$DrugClass), drug_ref$ATCCode)
+
 
 #-- Function to assign ATC class combination
 get_atc_class_combo <- function(drugs) {
@@ -42,7 +29,7 @@ get_atc_class_combo <- function(drugs) {
   class_counts <- table(classes)
   
   # Check if any class has at least 2 occurrences
-  for (class_name in c("SSRI", "SNRI", "TCA", "TeCA")) {
+  for (class_name in drug_ref$DrugClass) {
     if (!is.na(class_counts[class_name]) && class_counts[class_name] >= 2) {
       return(class_name)
     }
@@ -54,7 +41,7 @@ get_atc_class_combo <- function(drugs) {
 
 process_treatment_groups <- function(duration) {
   #-- Load treatment files and convert to Date format
-  groups <- fread(file.path(wkdir, "data", "AGDSAcceptabilityTreatmentGroups_14122024.csv")) %>%
+  groups <- fread(file.path(wkdir, "data", "AGDSAcceptabilityTreatmentGroups_14072025.csv")) %>%
     mutate(
       EarliestPrescription = as.Date(EarliestPrescription, format = "%d/%m/%Y"),
       LatestPrescription = as.Date(LatestPrescription, format = "%d/%m/%Y")
@@ -76,10 +63,6 @@ process_treatment_groups <- function(duration) {
       Flag = sum(PrescriptionDays >= duration) >= 2
     ) %>%
     ungroup()
-  
-  #table(flagged$Flag)
-  #FALSE  TRUE
-  #5221  1521
   
   #-- Annotate Participants as "Combination" or other based on flags
   multiple_ads <- multiple_ads %>%
