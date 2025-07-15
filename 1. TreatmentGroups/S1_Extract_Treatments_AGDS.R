@@ -5,6 +5,7 @@ library(tidyverse)
 library(lubridate)
 library(tidyverse)
 library(data.table)
+library(stringr)
 
 # -- Sample prescription data frame
 set.seed(42) 
@@ -39,6 +40,7 @@ prescriptions <- data.frame(
 # -- Prepare Data
 PrescriptionData <- prescriptions %>%
   arrange(ParticipantID, ATCCode, DateofSupply) %>%
+  filter(str_detect(ATCCode, "^N06A")) %>%
   group_by(ParticipantID, ATCCode) %>%
   mutate(RowNum = row_number()) %>%
   mutate(TreatmentPeriod = 1,
