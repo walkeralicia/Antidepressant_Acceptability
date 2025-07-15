@@ -6,7 +6,7 @@ library(tidyr)
 wkdir="/QRISdata/Q7280/pharmacogenomics/"
 
 #-- Set treatment duration
-duration = 600
+duration = 360
 
 #-- Read in phenotypes
 pheno <- read.csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv"))

@@ -73,14 +73,13 @@ for (duration in durations) {
     rename("ParticipantID" = "STUDYID") %>%
     filter(ParticipantID %in% groups$ParticipantID)
   
+  #-- Filter treatment groups for those with L (BIP+L)
+  groups_BIP_L <- groups %>%
+    filter(ParticipantID %in% BIP_lithium$ParticipantID)
+  
   #-- Format the BIP_lithium dataframe into the same as groups_noBIP
-  BIP_lithium_sorted <- BIP_lithium %>%
+  BIP_lithium_sorted <- groups_BIP_L %>%
     mutate(
-      NumberOfPrescriptionEpisodes = NA,
-      AveragePrescriptionEpisodeDays = NA,
-      EarliestPrescription = NA,
-      LatestPrescription = NA,
-      PrescriptionDays = NA,
       TreatmentGroup = "BIP+L",
       TreatmentDrugs = "Lithium",
       Combination_Class = NA
@@ -93,15 +92,16 @@ for (duration in durations) {
   bip_wout_L_ids <- bip_ids[!bip_ids %in% BIP_lithium$ParticipantID] %>% 
     unique()
   bip_wout_L_ids <- bip_wout_L_ids[bip_wout_L_ids %in% groups$ParticipantID]
-  bip_wout_L <- data.frame(ParticipantID = bip_wout_L_ids,
-                           NumberOfPrescriptionEpisodes = NA,
-                           AveragePrescriptionEpisodeDays = NA,
-                           EarliestPrescription = NA,
-                           LatestPrescription = NA,
-                           PrescriptionDays = NA,
-                           TreatmentGroup = "BIP-L",
-                           TreatmentDrugs = "Miscellaneous",
-                           Combination_Class = NA)
+  
+  #-- Filter treatment groups for those without L (BIP+L)
+  groups_BIP_noL <- groups %>%
+    filter(ParticipantID %in% bip_wout_L_ids)
+  
+  bip_wout_L <- groups_BIP_noL %>%
+    mutate(
+      TreatmentGroup = "BIP-L",
+      TreatmentDrugs = "Miscellaneous",
+      Combination_Class = NA)
   
   
   #-- Final AD treatment group dataframe

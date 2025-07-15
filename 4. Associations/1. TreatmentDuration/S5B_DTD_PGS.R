@@ -235,6 +235,7 @@ results_final <- results_final %>%
 
 # Save to Excel
 wb <- loadWorkbook(file.path("/scratch/user/uqawal15", "All_Results.xlsx"))
+removeWorksheet(wb, "Table4")
 addWorksheet(wb, "Table4")
 writeData(wb, "Table4", results_final)
 saveWorkbook(wb, file.path(output_dir, "All_Results.xlsx"), overwrite = TRUE)
