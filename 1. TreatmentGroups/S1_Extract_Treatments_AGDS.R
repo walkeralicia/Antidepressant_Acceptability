@@ -29,8 +29,6 @@ prescriptions <- data.frame(
   )
 )
 
-#====== Plot of antidepressants ranked by prescribing popularity each year ===
-
 ## IMPORTANT ##
 #-- Before proceeding:
 #-- 1. Make sure to filter prescription data for only antidepressants and
@@ -132,6 +130,6 @@ all_prescriptions <- do.call(rbind, prescription_tables)
 all_data <- full_join(Summary_PE, all_prescriptions, by = c("ParticipantID", "ATCCode"))
 
 # -- Save treatment groups as a .csv file
-write.csv(all_data, "AcceptabilityTreatmentGroups.csv", row.names = FALSE, quote = FALSE)
+write.csv(all_data, "AGDSAcceptabilityTreatmentGroups_14072025.csv", row.names = FALSE, quote = FALSE)
 
 ########################################################################################################

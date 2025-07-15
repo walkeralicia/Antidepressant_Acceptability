@@ -8,10 +8,8 @@ library(openxlsx)
 durations <- c(360, 600)
 
 #-- Order of treatment groups
-custom_order <- c('SSRI:Sertraline', 'SSRI:Escitalopram', 'SSRI:Citalopram', 'SSRI:Fluoxetine', 'SSRI:Paroxetine',
-                  'SNRI:Desvenlafaxine', 'SNRI:Venlafaxine', 'SNRI:Duloxetine', 'TCA:Amitriptyline', 'TeCA:Mirtazapine',
-                  'Combination', 'BIP+L', 'BIP-L', 'Various')
-
+source("/QRISdata/Q7280/pharmacogenomics/Drug_Reference/Drug_Reference_Table.R")
+custom_order <- c(drug_ref$DrugName, 'Combination', 'BIP+L', 'BIP-L', 'Various')
 
 #============== Summaries ===============================
 
@@ -21,6 +19,8 @@ for (duration in durations){
   
   #-- Load data
   dat <- read.csv(paste0("/QRISdata/Q7280/pharmacogenomics/phenotypes/treatment_phenotypes/inner_data_", duration, "days.csv"))
+  mean_age = mean(dat$AGE, na.rm = TRUE)
+  sd_age = sd(dat$AGE, na.rm = TRUE)
   
   #=== Basic characteristics of MDD and prescriptions patterns ===
   # use non-missing response denominator 
@@ -172,6 +172,7 @@ for (duration in durations){
     saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
   }
   
+  #=== AGDS ONLY
   #=== Proportions that Self-reported that the antidepressant works well for them ===
   well <- dat %>% 
     select(ParticipantID, WELLAD, DrugName) %>%

@@ -67,6 +67,13 @@ PRESCRIPTION_FILE <- "/QRISdata/Q7280/pharmacogenomics/data/AGDSAcceptabilityTre
 PHENO_FILE <- "/QRISdata/Q7280/pharmacogenomics/phenotypes/survey_phenotypes.csv"
 OUTPUT_DIR <- "/scratch/user/uqawal15"
 
+# Drug Reference Table
+source("/QRISdata/Q7280/pharmacogenomics/Drug_Reference/Drug_Reference_Table.R")
+ssris <- drug_ref %>%
+filter(DrugClass == "AIIa")
+snris <- drug_ref %>%
+filter(DrugClass == "AIIb")
+
 # Load and format principal components
 pcs <- read.table(PC_FILE) %>%
   setNames(c("FID", "IID", "PC1", "PC2", "PC3"))
@@ -92,15 +99,16 @@ drugs <- read.csv(PRESCRIPTION_FILE) %>%
 
 # Identify participants not in SSRI, BIP-L, or BIP+L groups (i.e., controls, n = 5205)
 controls <- groups %>% 
-  filter(!(DrugClass %in% c("SSRI") | DrugName %in% c("BIP-L", "BIP+L")))
+  filter(!(DrugClass %in% c("AIIa") | DrugName %in% c("BIP-L", "BIP+L")))
 
 # Filter prescription data to include only those from controls
 drugs_controls <- drugs %>% 
   filter(ParticipantID %in% controls$ParticipantID)
 
 # Identify controls with long-term SSRI use (>360 days, n = 476)
+# Include any other drugs that are SSRIs/AIIas
 long_term_controls <- drugs_controls %>%
-  filter(ATCCode %in% c("N06AB03", "N06AB04", "N06AB05", "N06AB06", "N06AB10") & PrescriptionDays > 360) %>%
+  filter(ATCCode %in% ssris$ATCCode & PrescriptionDays > 360) %>%
   distinct(ParticipantID)
 
 # Remove long-term users from the controls dataset (n = 4727)
@@ -111,23 +119,24 @@ controls_cleaned <- controls %>%
 # 1 = SSRI responder, 0 = non-responder, NA = not applicable
 groups$SSRI_Acceptability <- ifelse(
   groups$ParticipantID %in% controls_cleaned$ParticipantID, 0,
-  ifelse(groups$DrugClass == "SSRI", 1, NA)
+  ifelse(groups$DrugClass == "AIIa", 1, NA)
 )
 
 
-#------ Second option (SSRI+SNRI acceptability) -------------------------
+#------ Second option (SSRI/SNRI acceptability) -------------------------
 
 # Identify participants not in SSRI, SNRI, BIP-L, or BIP+L groups (i.e., controls)
 controls <- groups %>% 
-  filter(!(DrugClass %in% c("SSRI", "SNRI") | DrugName %in% c("BIP-L", "BIP+L")))
+  filter(!(DrugClass %in% c("AIIa", "AIIb") | DrugName %in% c("BIP-L", "BIP+L")))
 
 # Filter prescriptions data to include only those from the controls
 drugs_controls <- drugs %>% 
   filter(ParticipantID %in% controls$ParticipantID)
 
 # Identify controls with long-term SSRI or SNRI use (>360 days)
+# Include any other drugs that are SSRIs/AIIas and SNRIs/AIIbs
 long_term_controls <- drugs_controls %>%
-  filter(ATCCode %in% c("N06AB03", "N06AB04", "N06AB05", "N06AB06", "N06AB10", "N06AX16", "N06AX21", "N06AX23") & PrescriptionDays > 360) %>%
+  filter(ATCCode %in% c(ssris$ATCCode, snris$ATCCode) & PrescriptionDays > 360) %>%
   distinct(ParticipantID)
 
 # Remove long-term users from the controls dataset
@@ -138,9 +147,10 @@ controls_cleaned <- drugs_controls %>%
 # 1 = SSRI+SNRI responder, 0 = non-responder, NA = not applicable
 groups$SSRI_SNRI_Acceptability <- ifelse(
   groups$ParticipantID %in% controls_cleaned$ParticipantID, 0,
-  ifelse(groups$DrugClass %in% c("SSRI", "SNRI"), 1, NA)
+  ifelse(groups$DrugClass %in% c("AIIa", "AIIb"), 1, NA)
 )
 
+# ONLY IN AGDS (self-reported efficacy)
 #--------- Self-report SSRI and SNRI response ---------------
 response <- read.csv(PHENO_FILE)
 response2 <- response %>%
@@ -480,8 +490,8 @@ qq(gwas_cleaned$P, main = "QQ Plot: SSRI Acceptability")
 dev.off()
 
 
-#-- Convert to COJO format
-cojo_temp <- gwas_cleaned %>%
+#-- Align alleles
+gwas_temp <- gwas_cleaned %>%
   mutate(
     BETA = Z_STAT * `LOG(OR)_SE`,
     A2 = case_when(
@@ -508,22 +518,31 @@ cojo_temp <- gwas_cleaned %>%
   )
   
 #-- Save file for LD clumping
-ld_format <- cojo_temp %>%
+ld_format <- gwas_temp %>%
 select(SNP, CHR, BP = POS, P)
 fwrite(ld_format, file.path(output_dir, "SSRI_Acceptability_GWAS.temp"), sep = "\t")
 
 #-- Save COJO format as tab-delimited
-cojo_format <- cojo_temp %>%
+cojo_format <- gwas_temp %>%
 select(-CHR, -POS,-REF, -ALT, -OR, -Z_STAT)
 fwrite(cojo_format, file.path(output_dir, "SSRI_Acceptability_GWAS.ma"), sep = "\t")
 
 #-- Format results for a Supp Table
-sig <- cojo_temp %>%
+sig <- gwas_temp %>%
     mutate_at(vars(SE, P, A1_FREQ), ~ signif(., 2)) %>%
     mutate_at(vars(OR, Z_STAT), ~ round(., 2)) %>%
     select(CHR, POS, SNP, REF, ALT, A1, A2, A1_FREQ, OR, SE, Z_STAT, P, N) %>%
     filter(P < 0.000005) %>%
     arrange(P)
+    
+#-- Format results for sharing
+gwas_final <- gwas_temp %>%
+    mutate_at(vars(SE, P, A1_FREQ), ~ signif(., 4)) %>%
+    mutate_at(vars(OR, Z_STAT), ~ round(., 4)) %>%
+    select(CHR, POS, SNP, REF, ALT, A1, A2, A1_FREQ, OR, SE, Z_STAT, P, N) %>%
+    arrange(P) 
+fwrite(gwas_final, file.path(output_dir, "SSRI_Acceptability_GWAS.txt"), sep = "\t")
+
     
 wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
 #removeWorksheet(wb, "Table19")
@@ -748,7 +767,8 @@ sig <- cojo_temp %>%
     select(CHR, POS, SNP, REF, ALT, A1, A2, A1_FREQ, OR, SE, Z_STAT, P, N) %>%
     filter(P < 0.000005) %>%
     arrange(P)
-    
+
+  
 wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
 #removeWorksheet(wb, "Table21")
 addWorksheet(wb, "Table21")
@@ -934,7 +954,8 @@ cd ${wkdir}
   --clump-r2 0.1 \
   --clump-kb 250 \
   --out clumped_snps_SSRI_SNRI_Acceptability_chr${c}
-  
+
+# DO NOT NEED TO DO THIS
 #-------------- mBAT-combo on SSRI and SNRI Acceptability 
 
 #!/bin/bash
@@ -994,7 +1015,7 @@ c=${SLURM_ARRAY_TASK_ID}
 
 # Define paths
 mbat_version="/home/uqawal15/bin/gcta64_1.94.4/gcta64"
-glist="/QRISdata/Q5059/mBAT/mBAT-main/hg19.pos.ensgid.all.gene.loc.extendedMHCexcluded"
+glist="/QRISdata/Q5059/lmBAT/mBAT-main/hg19.pos.ensgid.all.gene.loc.extendedMHCexcluded"
 bfiledir="/QRISdata/Q7280/pharmacogenomics/genotypes/"
 wkdir="/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability"
 # /scratch/project/genetic_data_analysis/uqali4/Repseudo_RNA.gene.loc.format.hT.autosome (brain expressed genes)

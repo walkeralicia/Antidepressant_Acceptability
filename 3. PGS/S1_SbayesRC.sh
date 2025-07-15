@@ -106,15 +106,32 @@ ${path2gctb}/gctb \
 
 #-- Run COJO
 
-/QRISdata/Q6913/Pipeline/ukbEUR_Imputed/
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
+#SBATCH --time=24:00:00
+#SBATCH --mem=150G
+#SBATCH --job-name=ANO_cojo
+#SBATCH --partition=general
+#SBATCH --account=a_mcrae
+#SBATCH -o /QRISdata/Q7280/pharmacogenomics/pgs/sumstats/jobs/ANO_cojo.stdout
+#SBATCH -e /QRISdata/Q7280/pharmacogenomics/pgs/sumstats/jobs/ANO_cojo.stderr
 
-cojo_sub=`qsubshcom "gcta-1.94.1  \
---bfile   UKB_20k/PLINK/ukbEURu_imp_chr{TASK_ID}_v3_impQC_20k \
---chr   {TASK_ID} \
---cojo-file   ${trait}/${gwas_file}.ma  \
---cojo-slct  \
---out  ${trait}/COJO/${trait}_chr{TASK_ID}_cojo  "  10 150G "COJO"  24:00:00 "  -wait=$formatqsub  -array=1-22 "   `
+workingpath="/QRISdata/Q7280/pharmacogenomics/pgs/sumstats"
+ldm1="/QRISdata/Q6913/Pipeline/ukbEUR_Imputed/"
+path2gcta="/home/uqawal15/bin/gcta64_1.94.4"
 
+cd ${workingpath}
+
+trait=ANO_LOO
+gwas_file=Anorexia_Watson2019_exclAus.txt
+ma_file=${trait}/${gwas_file}
+
+${path2gcta}/gcta64 --cojo-file ${ma_file}.ma \
+     --cojo-slct \
+     --cojo-use-ldm ${ldm1} \
+     --out ${workingpath}/${ma_file}.ma.ldm
 
 
 ######################## BMI #################################

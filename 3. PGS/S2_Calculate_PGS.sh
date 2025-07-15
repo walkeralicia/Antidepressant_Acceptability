@@ -14,7 +14,7 @@ pred_list <- pred_list[c(1:98, 149),]
 
 write.csv(pred_list, "/QRISdata/Q7280/pharmacogenomics/pgs/weights/Predictor_Release_20250317.csv", quote = FALSE, row.names=FALSE)
 
-#-- Summary statistics from AGDS-LOO and CNT_03
+#-- Other summary statistics
 datdir="/QRISdata/Q7280/pharmacogenomics/pgs/sumstats"
 Trait <- c("ANO_LOO", "ANX_LOO", "BIP_LOO", "BMI_LOO","MDD_LOO","CNT_03", "OCD_2024")
 predictor_files = c(file.path(datdir, Trait[1], "SBayesRC", "Anorexia_Watson2019_exclAus.txt_imp.ma.imputed_sbrc_gctb.snpRes"),
@@ -29,11 +29,11 @@ pred_list_2 <- data.frame(
   Predictor = Trait,
   predictor_file = predictor_files)
 
-#-- combine both sets of predictors for the AGDS  
+#-- Combine both sets of predictors
 agds_pred_list <- rbind(pred_list, pred_list_2)
 write.csv(agds_pred_list, "/QRISdata/Q7280/pharmacogenomics/pgs/weights/AGDS_weights.csv", col.names = FALSE, row.names = FALSE, quote = FALSE)
 
-#======= NEW: This bash job generates PGS for multiple traits =================
+#======= This job generates PGS for multiple traits =================
 
 #!/bin/bash
 #SBATCH --nodes=1

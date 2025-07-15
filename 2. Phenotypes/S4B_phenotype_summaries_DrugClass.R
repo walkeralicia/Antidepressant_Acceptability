@@ -8,7 +8,8 @@ library(openxlsx)
 durations <- c(360, 600)
 
 #-- Order of treatment groups
-custom_order <- c('SSRI', 'SNRI', 'TCA', 'TeCA', 'BIP+L', 'BIP-L', 'Various')
+source("/QRISdata/Q7280/pharmacogenomics/Drug_Reference/Drug_Reference_Table.R")
+custom_order <- c(unique(drug_ref$DrugClass), 'BIP+L', 'BIP-L', 'Various')
 
 
 #============== Summaries ===============================
@@ -167,6 +168,7 @@ for (duration in durations){
     saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
   }
   
+  # AGDS ONLY
   #=== Self-reported that the antidepressant works well for them ===
   well <- dat %>% 
     select(ParticipantID, WELLAD, DrugClass) %>%

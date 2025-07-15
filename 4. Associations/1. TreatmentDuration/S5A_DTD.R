@@ -10,22 +10,12 @@ output_dir <- "/QRISdata/Q7280/pharmacogenomics/pharma_summaries"
 
 # -- Load data
 pheno <- read_csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv"))
-dat <- read_csv(file.path(wkdir, "data/AGDSAcceptabilityTreatmentGroups_14122024.csv"))
+dat <- read_csv(file.path(wkdir, "data/AGDSAcceptabilityTreatmentGroups_14072025.csv"))
 
 # -- Drug mapping as tibble
-drug_mapping <- tribble(
-  ~ATCCode, ~DrugName, ~DrugClass,
-  'N06AB06', "SSRI:Sertraline", 'SSRI',
-  'N06AB10', "SSRI:Escitalopram", 'SSRI',
-  'N06AB04', "SSRI:Citalopram", 'SSRI',
-  'N06AX16', "SNRI:Venlafaxine", 'SNRI',
-  'N06AX21', "SNRI:Duloxetine", 'SNRI',
-  'N06AA09', "TCA:Amitriptyline", 'TCA',
-  'N06AB05', "SSRI:Paroxetine", 'SSRI',
-  'N06AX11', "TeCA:Mirtazapine", 'TeCA',
-  'N06AX23', "SNRI:Desvenlafaxine", 'SNRI',
-  'N06AB03', "SSRI:Fluoxetine", 'SSRI'
-)
+source("/QRISdata/Q7280/pharmacogenomics/Drug_Reference/Drug_Reference_Table.R")
+drug_mapping <- drug_ref %>%
+  select(ATCCode, DrugName, DrugClass)
 
 # -- Map ATC codes
 ad_mapped <- dat %>%
@@ -37,7 +27,7 @@ pharma <- ad_mapped %>%
   summarize(
     num_ATC = n_distinct(ATCCode),
     num_class = n_distinct(DrugClass),
-    Total_TEs = sum(NumberOfTreatmentPeriods, na.rm = TRUE),
+    Total_TEs = sum(NumberOfPrescriptionEpisodes, na.rm = TRUE),
     TotalPrescriptionDays = sum(PrescriptionDays, na.rm = TRUE)
   )
 
@@ -55,19 +45,10 @@ pharma_full <- pharma_full %>%
   )
 
 # -- Creating a mapping for drug names
-drug_col_map <- tribble(
-  ~DrugName, ~ColSuffix,
-  "SSRI:Sertraline", "Sertraline",
-  "SSRI:Escitalopram", "Escitalopram",
-  "SSRI:Citalopram", "Citalopram",
-  "SSRI:Fluoxetine", "Fluoxetine",
-  "SSRI:Paroxetine", "Paroxetine",
-  "SNRI:Desvenlafaxine", "Desvenlafaxine",
-  "SNRI:Venlafaxine", "Venlafaxine",
-  "SNRI:Duloxetine", "Duloxetine",
-  "TCA:Amitriptyline", "Amitriptyline",
-  "TeCA:Mirtazapine", "Mirtazapine"
-)
+drug_col_map <- drug_ref %>%
+  select(DrugName, Drug) %>%
+  filter(DrugName %in% pharma_full$DrugName)
+
 
 # -- Create derived columns function
 create_derived_column <- function(df, prefix) {
@@ -79,7 +60,7 @@ create_derived_column <- function(df, prefix) {
   # Update for each drug
   for (i in 1:nrow(drug_col_map)) {
     drug <- drug_col_map$DrugName[i]
-    suffix <- drug_col_map$ColSuffix[i]
+    suffix <- drug_col_map$Drug[i]
     
     # Set values for matching drugs
     result <- result %>%
@@ -138,10 +119,10 @@ run_lm <- function(var, data, dependent_var, adjust_vars = NULL) {
   
   if (is.null(adjust_vars)) {
     # No adjustment variables
-    formula_str <- paste0(dependent_var, " ~ ", var)
+    formula_str <- as.formula(paste0(dependent_var, " ~ ", var))
   } else {
     # With adjustment variables
-    formula_str <- paste0(dependent_var, " ~ ", paste(adjust_vars, collapse = " + "), " + ", var)
+    formula_str <- as.formula(paste0(dependent_var, " ~ ", paste(adjust_vars, collapse = " + "), " + ", var))
   }
   
   # Run model
@@ -231,10 +212,8 @@ Medication_N <- filtered_pheno %>%
 
 # Run medication effects model (set reference level to Escitalopram)
 filtered_pheno <- filtered_pheno %>%
-  mutate(DrugName = factor(DrugName, levels = c("SSRI:Escitalopram", "SSRI:Sertraline", "SSRI:Citalopram", 
-                                                "SSRI:Fluoxetine", "SSRI:Paroxetine", "SNRI:Desvenlafaxine", 
-                                                "SNRI:Venlafaxine", "SNRI:Duloxetine", "TCA:Amitriptyline", 
-                                                "TeCA:Mirtazapine")))
+  mutate(DrugName = factor(DrugName, levels = c("AIIa:Escitalopram", 
+                                                setdiff(unique(drug_ref$DrugName), "AIIa:Escitalopram"))))
 
 lm_model <- lm(PrescriptionDays ~ AGE + SEX + DrugName, data = filtered_pheno)
 lm_output <- tibble::rownames_to_column(as.data.frame(coef(summary(lm_model))), "Term") %>%
@@ -244,7 +223,7 @@ lm_output <- tibble::rownames_to_column(as.data.frame(coef(summary(lm_model))), 
 lm_output <- lm_output %>%
   mutate(
     Term = str_replace(Term, "DrugName", ""),
-    Term = if_else(Term == "(Intercept)", "SSRI:Escitalopram", Term),
+    Term = if_else(Term == "(Intercept)", "AIIa:Escitalopram", Term),
     Total_N = length(unique(filtered_pheno$ParticipantID))
   )
 
@@ -268,7 +247,7 @@ med_results <- med_results %>%
     Total_N = if_else(Total_N != lag(Total_N, default = 0), Total_N, NA_integer_)
   ) %>%
   mutate(
-    Term = if_else(Term == "SSRI:Escitalopram", "Reference:SSRI:Escitalopram",
+    Term = if_else(Term == "AIIa:Escitalopram", "Reference:AIIa:Escitalopram",
                    if_else(Term == "AGE", "AGE (yrs)", 
                            if_else(Term == "SEX", "SEX(Female=1, Male=2)", Term)
                    )
@@ -281,7 +260,8 @@ write_csv(med_results, file.path(output_dir, "LM_PrescriptionDays_MedicationEffe
 #============ Class-specific effects ==============================================================
 # Set reference level for drug class
 filtered_pheno <- filtered_pheno %>%
-  mutate(DrugClass = factor(DrugClass, levels = c("SSRI", "SNRI", "TCA", "TeCA"))) %>%
+  mutate(DrugClass = factor(DrugClass, levels = c("AIIa", 
+                                                setdiff(unique(drug_ref$DrugClass), "AIIa")))) %>%
   filter(ParticipantID %in% pheno$ParticipantID) # Filter for those with phenotypes
 
 # Count by class
@@ -297,7 +277,7 @@ lm_output <- tibble::rownames_to_column(as.data.frame(coef(summary(lm_model))), 
 lm_output <- lm_output %>%
   mutate(
     Term = str_replace(Term, "DrugClass", ""),
-    Term = if_else(Term == "(Intercept)", "SSRI", Term),
+    Term = if_else(Term == "(Intercept)", "AIIa", Term),
     Total_N = length(unique(filtered_pheno$ParticipantID))
   )
 
@@ -321,14 +301,14 @@ class_results <- class_results %>%
     Total_N = if_else(Total_N != lag(Total_N, default = 0), Total_N, NA_integer_)
   )  %>%
   mutate(
-    Term = if_else(Term == "SSRI", "Reference:SSRI",
+    Term = if_else(Term == "AIIa", "Reference:AIIa",
                    if_else(Term == "AGE", "AGE (yrs)", 
                            if_else(Term == "SEX", "SEX(Female=1, Male=2)", Term)
                    )
     )
   )
 # Save the results
-write_csv(class_results, file.path(output_dir, "LM_PrescriptionDays_ClassEffects_SSRI_Reference.csv"))
+write_csv(class_results, file.path(output_dir, "LM_PrescriptionDays_ClassEffects_AIIa_Reference.csv"))
 
 #============== Analysis 2: Medication Diversity =============================================
 

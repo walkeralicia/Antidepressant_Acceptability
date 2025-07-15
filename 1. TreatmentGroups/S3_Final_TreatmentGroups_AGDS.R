@@ -76,8 +76,8 @@ for (duration in durations) {
   #-- Format the BIP_lithium dataframe into the same as groups_noBIP
   BIP_lithium_sorted <- BIP_lithium %>%
     mutate(
-      NumberOfTreatmentPeriods = NA,
-      AverageTreatmentPeriodDays = NA,
+      NumberOfPrescriptionEpisodes = NA,
+      AveragePrescriptionEpisodeDays = NA,
       EarliestPrescription = NA,
       LatestPrescription = NA,
       PrescriptionDays = NA,
@@ -94,8 +94,8 @@ for (duration in durations) {
     unique()
   bip_wout_L_ids <- bip_wout_L_ids[bip_wout_L_ids %in% groups$ParticipantID]
   bip_wout_L <- data.frame(ParticipantID = bip_wout_L_ids,
-                           NumberOfTreatmentPeriods = NA,
-                           AverageTreatmentPeriodDays = NA,
+                           NumberOfPrescriptionEpisodes = NA,
+                           AveragePrescriptionEpisodeDays = NA,
                            EarliestPrescription = NA,
                            LatestPrescription = NA,
                            PrescriptionDays = NA,
@@ -114,15 +114,9 @@ for (duration in durations) {
     filter(IID %in% eur$V2)
   
   #-- Map ATC codes to drug names and ad classes
-  ATCCodes <- c('N06AB06', 'N06AB10', 'N06AB04', 'N06AX16', 'N06AX21', 
-                'N06AA09', 'N06AB05', 'N06AX11', 'N06AX23', 'N06AB03')
-  DrugName <- c("SSRI:Sertraline", "SSRI:Escitalopram", "SSRI:Citalopram", "SNRI:Venlafaxine", "SNRI:Duloxetine", 
-                "TCA:Amitriptyline", "SSRI:Paroxetine", "TeCA:Mirtazapine", "SNRI:Desvenlafaxine", "SSRI:Fluoxetine")
-  DrugClass <- c('SSRI', 'SSRI', 'SSRI', 'SNRI', 'SNRI',
-                 'TCA', 'SSRI', 'TeCA', 'SNRI', 'SSRI')
-  atc_drug_ref = data.frame(DrugName = DrugName, ATCCodes = ATCCodes, DrugClass = DrugClass)
+  source("/QRISdata/Q7280/pharmacogenomics/Drug_Reference/Drug_Reference_Table.R")
   
-  final_mapped <- left_join(final_eur, atc_drug_ref, by = c("TreatmentGroup" = "ATCCodes"))
+  final_mapped <- left_join(final_eur, drug_ref, by = c("TreatmentGroup" = "ATCCode"))
   
   
   #-- Final Drug and Drug Class groups
@@ -137,4 +131,3 @@ for (duration in durations) {
   write.csv(final_mapped, paste0("/scratch/user/uqawal15/Final_Treatmentgroups_", duration, "days.csv"), row.names=FALSE)
 
 }
-

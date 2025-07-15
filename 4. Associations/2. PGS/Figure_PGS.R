@@ -15,7 +15,8 @@ dodge_width <- 0.8
 dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table13")
 
 #-- Drug order
-drug_order <- c("SNRI", "TeCA", "TCA", "BIP+L", "BIP-L", "Various")
+source("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\Drug_Reference_Table.R")
+drug_order <- intersect(c(unique(drug_ref$DrugClass), "BIP+L", "BIP-L", "Various"), dat$Term)
 
 #-- Fill in NA
 dat_filled <- dat %>%
@@ -23,8 +24,8 @@ dat_filled <- dat %>%
 
 #-- Filter for test statistics for medications groups in which the reference drug is SSRI
 dat_ssri <- dat_filled %>% 
-  filter(Term != "SSRI" & 
-        Reference == "SSRI", 
+  filter(Term != "AIIa" & 
+        Reference == "AIIa", 
          Threshold == "360 days") %>%
   mutate(PGS = ifelse(PGS == "MDD", "MD", PGS))
 
@@ -73,7 +74,7 @@ p <- ggplot(dat_ssri, aes(y = PGS, x = estimate, color = P.value)) +
             position = position_dodge(width = dodge_width)) +  
   facet_wrap(~Term, nrow = 1, labeller = labeller(Term = med_labels)) +
   ylab("PGS Trait") +
-  xlab("Estimate (SD units; SSRI as reference [N=3,573])") +
+  xlab("Estimate (SD units; AIIa as reference [N=3,573])") +
   theme_classic(base_size = 12) +
   scale_color_viridis(option = "D") +
   theme(
@@ -118,12 +119,12 @@ dat_filled <- dat %>%
 
 #-- Filter for test statistics for medications groups in which the reference drug is SSRI
 dat_ssri <- dat_filled %>% 
-  filter(Term != "SSRI:Sertraline" & 
-           Reference== "SSRI:Sertraline")
+  filter(Term != "AIIa:Sertraline" & 
+           Reference== "AIIa:Sertraline")
 
 dat_ssri$PGS <- factor(dat_ssri$PGS, levels = rev(c("MDD", "BIP", "SCZ", "ADHD", "ANO", "ANX", "OCD", "Neuroticism",
                                                     "BMI", "T2D", "SBP", "CNT", "LRA", "Migraine", "PUD", "CRP", "LDL-c")))
-dat_ssri$Term <- factor(dat_ssri$Term, levels = rev(c( "Various", "Combination", "BIP-L", "BIP+L", "TeCA:Mirtazapine", "TCA:Amitriptyline", "SNRI:Duloxetine", "SNRI:Desvenlafaxine", "SNRI:Venlafaxine", "SSRI:Paroxetine", "SSRI:Fluoxetine", "SSRI:Escitalopram", "SSRI:Citalopram")))
+dat_ssri$Term <- factor(dat_ssri$Term, levels = rev(c( "Various", "Combination", "BIP-L", "BIP+L", drug_ref$DrugName)))
 dat_ssri$Threshold <- factor(dat_ssri$Threshold, levels = c("360 days", "600 days"))
 
 #-- Label for FDR or Bonferroni significance
@@ -156,7 +157,7 @@ p <- ggplot(dat_ssri, aes(x = Term, y = estimate, group = Threshold, colour = Th
             position = position_dodge(width = dodge_width)) +  
   facet_wrap(~PGS, nrow = 5, scales = "free_y") +
   xlab("Treatment group") +
-  ylab("Estimate difference from SSRI-Sertraline") +
+  ylab("Estimate difference from AIIa:Sertraline") +
   theme_bw(base_size = 27) +
   scale_color_manual(values = custom_colors) +
   theme(

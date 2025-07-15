@@ -15,13 +15,9 @@ pheno <- read_csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv")) %>%
   rename(ParticipantID = STUDYID)
 
 # -- Drug mapping as tibble
-drug_mapping <- tibble(
-  ATCCode = c('N06AB06', 'N06AB10', 'N06AB04', 'N06AX16', 'N06AX21', 
-              'N06AA09', 'N06AB05', 'N06AX11', 'N06AX23', 'N06AB03'),
-  DrugName = c("SSRI:Sertraline", "SSRI:Escitalopram", "SSRI:Citalopram", "SNRI:Venlafaxine", "SNRI:Duloxetine", 
-               "TCA:Amitriptyline", "SSRI:Paroxetine", "TeCA:Mirtazapine", "SNRI:Desvenlafaxine", "SSRI:Fluoxetine"),
-  DrugClass = c('SSRI', 'SSRI', 'SSRI', 'SNRI', 'SNRI', 'TCA', 'SSRI', 'TeCA', 'SNRI', 'SSRI')
-)
+source("/QRISdata/Q7280/pharmacogenomics/Drug_Reference/Drug_Reference_Table.R")
+drug_mapping <- drug_ref %>%
+  select(ATCCode, DrugName, DrugClass)
 
 # -- Map ATC codes
 ad_mapped <- dat %>%
@@ -39,7 +35,7 @@ pharma <- ad_mapped %>%
 
 # -- Genetic data setup
 pgslist <- system('find /QRISdata/Q7280/pharmacogenomics/pgs -name "*agds_sbrc_gctb_plink2.sscore" -type f -exec ls {} \\;', intern = TRUE)
-pgs_codes <- c("PUD_01", "T2D_03", "CNT_03", "ADHD_01", "BIP_LOO", "BMI_LOO", "MDD_LOO", "SCZ_02", "Migraine_01", "SBP_01", "ANX_LOO", "ANO_LOO", "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "OCD_2024", "Neuroticism_01", "LRA_01")
+pgs_codes <- c("PUD_01", "T2D_03", "CNT_03", "ADHD_01", "BIP_LOO", "BMI_LOO", "MDD_LOO", "SCZ_02", "Migraine_01", "SBP_01",  "ANO_LOO", "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "Neuroticism_01", "LRA_01")
 selected_pgs <- pgslist[grep(paste(pgs_codes, collapse = "|"), pgslist)]
 
 # -- List of Europeans
@@ -191,7 +187,6 @@ results_annotated <- results_combined %>%
 pgs_rename_mapping <- c(
   "ADHD_01" = "ADHD",
   "ANO_LOO" = "Anorexia",
-  "ANX_LOO" = "Anxiety",
   "BIP_LOO" = "Bipolar Disorder",
   "BMI_LOO" = "BMI",
   "CNT_03" = "Chronotype",
@@ -199,7 +194,6 @@ pgs_rename_mapping <- c(
   "MDD_LOO" = "Depression",
   "Migraine_01" = "Migraine",
   "Neuroticism_01" = "Neuroticism",
-  "OCD_2024" = "OCD",
   "PUD_01" = "Peptic Ulcer Disease",
   "SBP_01" = "Systolic Blood Pressure",
   "SCZ_02" = "Schizophrenia",
@@ -241,11 +235,8 @@ results_final <- results_final %>%
 
 # Save to Excel
 wb <- loadWorkbook(file.path("/scratch/user/uqawal15", "All_Results.xlsx"))
-removeWorksheet(wb, "Table3")
-addWorksheet(wb, "Table3")
-writeData(wb, "Table3", results_final)
+addWorksheet(wb, "Table4")
+writeData(wb, "Table4", results_final)
 saveWorkbook(wb, file.path(output_dir, "All_Results.xlsx"), overwrite = TRUE)
 
 
-
-cat("Analysis complete. Combined results saved with BIP inclusion/exclusion indicator.\n")
