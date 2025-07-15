@@ -37,10 +37,13 @@ prescriptions <- data.frame(
 #      4.5-year prescription window of interest
 #-- 2. Select for columns 'ParticipantID', 'DateofSupply' and 'ATCCode'
 
+# Make sure to add any other antidepressants in your dataset not included in this drug reference table
+source("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\Drug_Reference_Table.R")
+
 # -- Prepare Data
 PrescriptionData <- prescriptions %>%
   arrange(ParticipantID, ATCCode, DateofSupply) %>%
-  filter(str_detect(ATCCode, "^N06A")) %>%
+  filter(ATCCode %in% drug_ref$ATCCode) %>%
   group_by(ParticipantID, ATCCode) %>%
   mutate(RowNum = row_number()) %>%
   mutate(TreatmentPeriod = 1,
