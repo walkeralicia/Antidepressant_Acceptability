@@ -9,6 +9,7 @@ library(stringr)
 library(cowplot)
 library(readxl)
 library(viridis)
+library(tidyr)
 dodge_width <- 0.8
 
 #-- Read in results in which the dependent variable is quantitative
