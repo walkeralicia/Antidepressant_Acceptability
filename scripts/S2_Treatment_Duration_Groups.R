@@ -1,3 +1,4 @@
+
 #-- Load R libraries
 library(dplyr)
 library(data.table)
@@ -5,7 +6,7 @@ library(data.table)
 #-- Set path
 wkdir <- "/QRISdata/Q7280/pharmacogenomics"
 
-#-- Define ATC mapping once at the beginning
+#-- Drug reference table
 source("/QRISdata/Q7280/pharmacogenomics/Drug_Reference/Drug_Reference_Table.R")
 atc_mapping <- setNames(as.list(drug_ref$DrugClass), drug_ref$ATCCode)
 
@@ -35,7 +36,7 @@ get_atc_class_combo <- function(drugs) {
     }
   }
   
-  # If no class has 2+ occurrences, return NA
+  # If no class has 2+ occurrences, return Miscellaneous
   return("Miscellaneous")
 }
 
@@ -52,9 +53,9 @@ process_treatment_groups <- function(duration) {
     group_by(ParticipantID) %>%
     filter(n() > 1) %>% 
     ungroup() %>%
-    as.data.frame() # 7936
+    as.data.frame()
   
-  one_ad <- groups[!groups$ParticipantID %in% multiple_ads$ParticipantID, ] # 6742
+  one_ad <- groups[!groups$ParticipantID %in% multiple_ads$ParticipantID, ]
   
   #-- Flag participants dispensing at least two antidepressants for a sustained period of time
   flagged <- multiple_ads %>%

@@ -7,35 +7,6 @@ library(tidyverse)
 library(data.table)
 library(stringr)
 
-# -- Sample prescription data frame
-set.seed(42) 
-num_individuals <- 40
-num_prescriptions_per_individual <- 50
-
-# -- Create a data frame to represent prescription data
-prescriptions <- data.frame(
-  ParticipantID = rep(1:num_individuals, each = num_prescriptions_per_individual),
-  DateofSupply = rep(seq(as.Date('2020-01-01'), by = 'months', length.out = num_prescriptions_per_individual), num_individuals),
-  ATCCode = c(
-    rep(c('N06AB06', 'N06AB03'), each = 100, length.out = num_prescriptions_per_individual),
-    rep(c('N06AB04', 'N06AB03'), each = 15, length.out = num_prescriptions_per_individual),
-    rep(c('N06AB06', 'N06AB04'), each = 6, length.out = num_prescriptions_per_individual),
-    rep(c('N06AX16'), length.out = num_prescriptions_per_individual), 
-    rep(c('N06AX11'), length.out = num_prescriptions_per_individual),
-    rep(c('N06AA09'), length.out = num_prescriptions_per_individual),
-    rep(c('N06AB03'), length.out = num_prescriptions_per_individual), 
-    rep(c('N06AB10'), length.out = num_prescriptions_per_individual), 
-    rep(c('N06AX21'), length.out = num_prescriptions_per_individual), 
-    rep(c('N06AB05'), length.out = num_prescriptions_per_individual) 
-  )
-)
-
-## IMPORTANT ##
-#-- Before proceeding:
-#-- 1. Make sure to filter prescription data for only antidepressants and the
-#      4.5-year prescription window of interest
-#-- 2. Select for columns 'ParticipantID', 'DateofSupply' and 'ATCCode'
-
 # -- Prepare Data
 PrescriptionData <- prescriptions %>%
   arrange(ParticipantID, ATCCode, DateofSupply) %>%
@@ -132,4 +103,4 @@ all_data <- full_join(Summary_PE, all_prescriptions, by = c("ParticipantID", "AT
 # -- Save treatment groups as a .csv file
 write.csv(all_data, "AGDSAcceptabilityTreatmentGroups_14072025.csv", row.names = FALSE, quote = FALSE)
 
-########################################################################################################
+
