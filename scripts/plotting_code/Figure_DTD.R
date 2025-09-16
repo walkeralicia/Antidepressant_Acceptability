@@ -6,7 +6,11 @@ library(viridis)
 
 # -- Read in association results
 dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_Results.xlsx", sheet = "Table3")
-
+non_self_report <- c("Augmentation", "Number Co-occurring Conditions", "ADHD-related Medications",
+                     "Analgesics-related Medications", "Anxiety-related Medications", "Asthma/COPD-related Medications",
+                     "Cancer-related Medications", "Cardiovascular-related Medications", 
+                     "Diabetes-related Medications", "Dyslipidemia-related Medications", "Hepatic-related Medications",
+                     "Immunosuppressants", "Siezure-related Medications", "Sleep-related Medications", "Thyroid-related Medications")
 # -- Pre-processing: fill missing values, filter, and categorize in a single pipeline
 processed_data <- dat %>%
   # Fill in NA values
@@ -16,6 +20,8 @@ processed_data <- dat %>%
   filter(Term != "Age" & Term != "Sex" | 
            (Term == "Age" & Independent == "Age") | 
            (Term == "Sex" & Independent == "Sex")) %>%
+  #-- Filter out pharma measures for first plot
+  filter(!Term %in% non_self_report) %>%
   # Select needed columns  
   select(Dependent, Independent, Total_N, Estimate, `Std. Error`, `Pr(>|t|)`, FDR_P, Bonf_P, Sig_FDR, Sig_Bonf, Total_Cases, Total_Controls)
 
@@ -26,7 +32,7 @@ cases <- dat %>%
     Cases_perc = round(Total_Cases/(Total_Cases+Total_Controls)*100, 0)
   ) %>%
   select(-Total_Controls, -Total_Cases)
-  
+
 
 processed_data <- processed_data %>%
   left_join(cases, by = c("Independent")) %>%
@@ -43,14 +49,14 @@ processed_data <- processed_data %>%
     Category = case_when(
       Independent %in% c("Age", "Sex", "Age of MDD Onset", "Recurrent 2-Weeks of MDD", 
                          "Body Mass Index", "Suicidal Ideation", "Self harm", "Education level", 
-                         "Physical health", "Regular Smoker", "Drinks over 3 Months") ~ "Risk Factors",
+                         "Physical health", "Regular Smoker", "Drinks over 3 Months", "Likely Pregnant", "Breastfeed Ever") ~ "Risk Factors",
       Independent %in% c("Type 2 Diabetes", "Stomach Ulcers", "Back pain", "Chronic pain", 
                          "Migraines or Headaches", "Endometriosis", "Fibroids (uterus)", 
                          "PCOS", "Chronic Fatigue Syndrome", "Epilepsy") ~ "Physical",
       Independent %in% c("Anxiety Disorder", "Bipolar Disorder", "Schizophrenia", "Anorexia Nervosa", "Personality Disorder", 
                          "Substance Use Disorder", "ADHD", "Obsessive-compulsive Disorder",
                          "Seasonal Affective Disorder", "Chronic pain", 
-                         "Premenstrual Dysphoric Disorder") ~ "Neuropsychiatric",
+                         "Premenstrual Dysphoric Disorder", "Circadian Subtype") ~ "Neuropsychiatric",
       TRUE ~ "Worst MDD Episode"
     )
   ) %>%
@@ -160,5 +166,6 @@ plots <- plot_grid(
 )
 
 # -- Save combined plot
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\1. TreatmentDuration\\Results\\PrescriptionDuration_Associations.png", 
-       plot = plots, device = "png", width = 400, height = 500, units = "mm", dpi = 600)
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\PrescriptionDuration_Associations.png", 
+       plot = plots, device = "png", width = 500, height = 500, units = "mm", dpi = 600)
+
