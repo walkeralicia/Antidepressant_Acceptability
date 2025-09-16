@@ -1,16 +1,36 @@
 
 
 # -- Load packages
-library(tidyverse)
+library(dplyr)
+library(purrr)
+library(stringr)
 library(openxlsx)
+library(progressr)
+library(lme4)
 
 # -- Set working directory
 wkdir <- "/QRISdata/Q7280/pharmacogenomics"
 output_dir <- "/QRISdata/Q7280/pharmacogenomics/pharma_summaries"
 
 # -- Load data
-pheno <- read_csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv"))
-dat <- read_csv(file.path(wkdir, "data/AGDSAcceptabilityTreatmentGroups_14072025.csv"))
+pheno <- read.csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv"))
+pheno$timesincefirstpreg = pheno$AGE - pheno$PREG1AGE
+pheno <- pheno %>%
+  mutate(
+    earliest_last_end = PREG1AGE + 2 *pmax(CHILDREN, 0),
+    latest_last_end = AGE,
+    preg_last5_deterministic = case_when(
+      CHILDREN == 0 ~ 0,
+      earliest_last_end >= AGE - 5 ~ 1,
+      TRUE ~ NA
+    ),
+    BFEEDANY = case_when(
+      BFEEDANY == 1 ~ 0,
+      BFEEDANY == 2 | BFEEDANY == 3 ~ 1,
+      TRUE ~ NA
+    )
+  )
+dat <- read.csv(file.path(wkdir, "data/AGDSAcceptabilityTreatmentGroups_25082025.csv"))
 
 # -- Drug mapping as tibble
 source("/QRISdata/Q7280/pharmacogenomics/Drug_Reference/Drug_Reference_Table.R")
@@ -35,7 +55,8 @@ pharma <- ad_mapped %>%
 pheno <- pheno %>% mutate(ParticipantID = STUDYID)
 pharma_full <- ad_mapped %>%
   left_join(pheno, by = "ParticipantID") %>%
-  left_join(pharma, by = "ParticipantID")
+  left_join(pharma, by = "ParticipantID") %>%
+  filter(MDD==1)
 
 # -- Create recurrent depression variables
 pharma_full <- pharma_full %>%
@@ -80,14 +101,17 @@ pharma_full <- pharma_full %>%
   create_derived_column("STOP")
 
 #-- Define independent variables
-independent <- c("AGE", "SEX", "AGE2WKF", "Recurrent",
-                 "BMI", "SUICIDEA", "SELFHARM", "EDU", "PHYSHLTH", "REGSMK", "DRK3FRQ",
+#-- Dementia related medications was excluded as 0% were dispensing
+independent <- c("AGE", "SEX", "AGE2WKF", "Recurrent", "circadian",
+                 "BMI", "SUICIDEA", "SELFHARM", "EDU", "PHYSHLTH", "REGSMK", "DRK3FRQ", "preg_last5_deterministic", "BFEEDANY",
                  "TYPE11B", "TYPE33C","DXPDMD", "DXANX", "DXPERSD", "DXBPD2", "DXSUD", "DXADHD", "DXOCD", "DXSAD", "DXANOR", "DXSCZ",
                  "DXPHYS3", "DXPHYS6", "DXPHYS12", "DXPHYS34", "MIGEVR", "DXENDO", "DXFIBRO", "DXPCOS",
-                 "LOWINT2W", "DEP2WK", "FATIGUED.x", "GUILTY", "NOFOCUS", "DEATHTHK", "APWTCHANGE", "SLEEP", "MOVEMENT")
+                 "LOWINT2W", "DEP2WK", "FATIGUED.x", "GUILTY", "NOFOCUS", "DEATHTHK", "APWTCHANGE", "SLEEP", "MOVEMENT", "atypical",
+                 "Augmentation", "num_conditions", "ADHD", "Analgesics", "Anxiety", "Asthma_and_COPD", "Cancer", "Cardiovascular",
+                 "Diabetes", "Dyslipidemia", "Hepatic", "Immunosuppressants", "Siezures", "Sleep", "Thyroid")
 
-#-- Vector of binary variables
-non_binary <- c("AGE", "AGE2WKF", "BMI", "EDU", "PHYSHLTH", "DRK3FRQ")
+#-- Vector of non-binary variables
+non_binary <- c("AGE", "AGE2WKF", "BMI", "EDU", "PHYSHLTH", "DRK3FRQ",  "GA_score", "num_conditions")
 
 # -- Convert SEX
 pharma_full <- pharma_full %>%
@@ -156,12 +180,18 @@ lm1_base_data <- tab %>%
   filter(!is.na(AGE) & !is.na(SEX) & !is.na(TotalPrescriptionDays))
 
 # Apply run_lm to each independent variable
-lm1_results <- map_dfr(independent, function(var) {
-  if (var %in% c("AGE", "SEX")) {
-    run_lm(var, lm1_base_data, "TotalPrescriptionDays")
-  } else {
-    run_lm(var, lm1_base_data, "TotalPrescriptionDays", c("AGE", "SEX"))
-  }
+with_progress({
+  p <- progressor(steps = length(independent))
+  
+  lm1_results <- map_dfr(independent, function(var) {
+    result <- if (var %in% c("AGE", "SEX")) {
+      run_lm(var, lm1_base_data, "TotalPrescriptionDays")
+    } else {
+      run_lm(var, lm1_base_data, "TotalPrescriptionDays", c("AGE", "SEX"))
+    }
+    p(sprintf("Completed %s", var))
+    result
+  })
 })
 
 # -- Format results
@@ -212,18 +242,26 @@ Medication_N <- filtered_pheno %>%
 
 # Run medication effects model (set reference level to Escitalopram)
 filtered_pheno <- filtered_pheno %>%
-  mutate(DrugName = factor(DrugName, levels = c("AIIa:Escitalopram", 
-                                                setdiff(unique(drug_ref$DrugName), "AIIa:Escitalopram"))))
+  mutate(DrugName = factor(DrugName, levels = c("SSRI:Escitalopram", 
+                                                setdiff(unique(drug_ref$DrugName), "SSRI:Escitalopram"))))
 
-lm_model <- lm(PrescriptionDays ~ AGE + SEX + DrugName, data = filtered_pheno)
-lm_output <- tibble::rownames_to_column(as.data.frame(coef(summary(lm_model))), "Term") %>%
+#lm_model <- lm(PrescriptionDays ~ AGE + SEX + DrugName, data = filtered_pheno)
+#lm_output <- tibble::rownames_to_column(as.data.frame(coef(summary(lm_model))), "Term") %>%
+#  as_tibble()
+
+mixed_model <- lmer(PrescriptionDays ~ AGE + SEX + DrugName + (1|ParticipantID), 
+                    data = filtered_pheno)
+mixed_output <- tibble::rownames_to_column(
+  as.data.frame(coef(summary(mixed_model))), 
+  "Term"
+) %>%
   as_tibble()
 
 # Clean up variable names
-lm_output <- lm_output %>%
+lm_output <- mixed_output %>%
   mutate(
     Term = str_replace(Term, "DrugName", ""),
-    Term = if_else(Term == "(Intercept)", "AIIa:Escitalopram", Term),
+    Term = if_else(Term == "(Intercept)", "SSRI:Escitalopram", Term),
     Total_N = length(unique(filtered_pheno$ParticipantID))
   )
 
@@ -231,13 +269,13 @@ lm_output <- lm_output %>%
 med_results <- lm_output %>%
   left_join(Medication_N, by = c("Term" = "DrugName")) %>%
   mutate(
-    `Pr(>|t|)` = format(signif(`Pr(>|t|)`, 2),scientific = TRUE),
+    #`Pr(>|t|)` = format(signif(`Pr(>|t|)`, 2),scientific = TRUE),
     across(c(`Std. Error`,`t value`), ~ round(.x, 2)),
     across(c(Estimate), ~ round(.x, 1)),
     Dependent = "Cumulative Prescription Dispense (days)"
   ) %>%
   arrange(Dependent, Term) %>%
-  select(Dependent, Term, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`, Total_N, Medication_N)
+  select(Dependent, Term, Estimate, `Std. Error`, `t value`, Total_N, Medication_N)
 
 # Format for reporting
 med_results <- med_results %>%
@@ -247,7 +285,7 @@ med_results <- med_results %>%
     Total_N = if_else(Total_N != lag(Total_N, default = 0), Total_N, NA_integer_)
   ) %>%
   mutate(
-    Term = if_else(Term == "AIIa:Escitalopram", "Reference:AIIa:Escitalopram",
+    Term = if_else(Term == "SSRI:Escitalopram", "Reference:SSRI:Escitalopram",
                    if_else(Term == "AGE", "AGE (yrs)", 
                            if_else(Term == "SEX", "SEX(Female=1, Male=2)", Term)
                    )
@@ -255,13 +293,13 @@ med_results <- med_results %>%
   )
     
 # Save the results
-write_csv(med_results, file.path(output_dir, "LM_PrescriptionDays_MedicationEffects_Escitalopram_Reference.csv"))
+write.csv(med_results, file.path(output_dir, "LM_PrescriptionDays_MedicationEffects_Escitalopram_Reference.csv"), quote = FALSE, row.names = FALSE)
 
 #============ Class-specific effects ==============================================================
 # Set reference level for drug class
 filtered_pheno <- filtered_pheno %>%
-  mutate(DrugClass = factor(DrugClass, levels = c("AIIa", 
-                                                setdiff(unique(drug_ref$DrugClass), "AIIa")))) %>%
+  mutate(DrugClass = factor(DrugClass, levels = c("SSRI", 
+                                                setdiff(unique(drug_ref$DrugClass), "SSRI")))) %>%
   filter(ParticipantID %in% pheno$ParticipantID) # Filter for those with phenotypes
 
 # Count by class
@@ -269,15 +307,24 @@ Class_N <- filtered_pheno %>%
   count(DrugClass, name = "Class_N")
 
 # Run class effects model
-lm_model <- lm(PrescriptionDays ~ AGE + SEX + DrugClass, data = filtered_pheno)
-lm_output <- tibble::rownames_to_column(as.data.frame(coef(summary(lm_model))), "Term") %>%
+#lm_model <- lm(PrescriptionDays ~ AGE + SEX + DrugClass, data = filtered_pheno)
+#lm_output <- tibble::rownames_to_column(as.data.frame(coef(summary(lm_model))), "Term") %>%
+#  as_tibble()
+
+mixed_model <- lmer(PrescriptionDays ~ AGE + SEX + DrugClass + (1|ParticipantID), 
+                    data = filtered_pheno)
+mixed_output <- tibble::rownames_to_column(
+  as.data.frame(coef(summary(mixed_model))), 
+  "Term"
+) %>%
   as_tibble()
 
+
 # Clean up variable names
-lm_output <- lm_output %>%
+lm_output <- mixed_output %>%
   mutate(
     Term = str_replace(Term, "DrugClass", ""),
-    Term = if_else(Term == "(Intercept)", "AIIa", Term),
+    Term = if_else(Term == "(Intercept)", "SSRI", Term),
     Total_N = length(unique(filtered_pheno$ParticipantID))
   )
 
@@ -285,13 +332,13 @@ lm_output <- lm_output %>%
 class_results <- lm_output %>%
   left_join(Class_N, by = c("Term" = "DrugClass")) %>%
   mutate(
-    `Pr(>|t|)` = format(signif(`Pr(>|t|)`, 2),scientific = TRUE),
+    #`Pr(>|t|)` = format(signif(`Pr(>|t|)`, 2),scientific = TRUE),
     across(c(`Std. Error`,`t value`), ~ round(.x, 2)),
     across(c(Estimate), ~ round(.x, 1)),
     Dependent = "Cumulative Prescription Dispense (days)"
   ) %>%
   arrange(Dependent, Term) %>%
-  select(Dependent, Term, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`, Total_N, Class_N)
+  select(Dependent, Term, Estimate, `Std. Error`, `t value`, Total_N, Class_N)
 
 # Format for reporting
 class_results <- class_results %>%
@@ -301,14 +348,14 @@ class_results <- class_results %>%
     Total_N = if_else(Total_N != lag(Total_N, default = 0), Total_N, NA_integer_)
   )  %>%
   mutate(
-    Term = if_else(Term == "AIIa", "Reference:AIIa",
+    Term = if_else(Term == "SSRI", "Reference:SSRI",
                    if_else(Term == "AGE", "AGE (yrs)", 
                            if_else(Term == "SEX", "SEX(Female=1, Male=2)", Term)
                    )
     )
   )
 # Save the results
-write_csv(class_results, file.path(output_dir, "LM_PrescriptionDays_ClassEffects_AIIa_Reference.csv"))
+write.csv(class_results, file.path(output_dir, "LM_PrescriptionDays_ClassEffects_SSRI_Reference.csv"), quote = FALSE, row.names = FALSE)
 
 #============== Analysis 2: Medication Diversity =============================================
 
@@ -318,12 +365,18 @@ run_analysis <- function(data, dependent_var, dependent_label) {
     filter(!is.na(AGE) & !is.na(SEX) & !is.na(!!sym(dependent_var)))
   
   # Run models for each independent variable
-  results <- map_dfr(independent, function(var) {
-    if (var %in% c("AGE", "SEX")) {
-      run_lm(var, base_data, dependent_var)
-    } else {
-      run_lm(var, base_data, dependent_var, c("AGE", "SEX"))
-    }
+  with_progress({
+    p <- progressor(steps = length(independent))
+    
+    results <- map_dfr(independent, function(var) {
+      result <- if (var %in% c("AGE", "SEX")) {
+        run_lm(var, base_data, dependent_var)
+      } else {
+        run_lm(var, base_data, dependent_var, c("AGE", "SEX"))
+      }
+      p()  # Just increment the counter
+      result
+    })
   })
   
   # Format results
@@ -376,10 +429,13 @@ rename_mapping <- c(
   "BMI" = "Body Mass Index",
   "SUICIDEA" = "Suicidal Ideation",
   "SELFHARM" = "Self harm",
+  "circadian" = "Circadian Subtype",
   "EDU" = "Education level",
   "PHYSHLTH" = "Physical health",
   "REGSMK" = "Regular Smoker",
   "DRK3FRQ" = "Drinks over 3 Months",
+  "preg_last5_deterministic" = "Likely Pregnant",
+  "BFEEDANY" = "Breastfeed Ever",
   "TYPE11B" = "Type 2 Diabetes", 
   "TYPE33C" = "Stomach Ulcers",
   "DXANX" = "Anxiety Disorder",
@@ -408,10 +464,27 @@ rename_mapping <- c(
   "DEATHTHK" = "Death Thoughts",
   "APWTCHANGE" = "Appetite/Weight Change",
   "SLEEP" = "Sleep Disturbances",
-  "MOVEMENT" = "Movement Changes", 
+  "MOVEMENT" = "Movement Changes",
+  "atypical" = "Atypical Subtype",
+  "Augmentation" = "Augmentation",
+  "num_conditions" = "Number Co-occurring Conditions",
+  "ADHD" = "ADHD-related Medications",
+  "Analgesics" = "Analgesics-related Medications",
+  "Anxiety" = "Anxiety-related Medications",
+  "Asthma_and_COPD" = "Asthma/COPD-related Medications",
+  "Cancer" = "Cancer-related Medications",
+  "Cardiovascular" = "Cardiovascular-related Medications",
+  "Diabetes" = "Diabetes-related Medications",
+  "Dyslipidemia" = "Dyslipidemia-related Medications",
+  "Hepatic" = "Hepatic-related Medications",
+  "Immunosuppressants" = "Immunosuppressants",
+  "Siezures" = "Siezure-related Medications",
+  "Sleep" = "Sleep-related Medications",
+  "Thyroid" = "Thyroid-related Medications",
   "(Intercept)" = "Intercept"
 )
 
+# 59 phenotypes
 apply_renaming <- function(df) {
   df %>%
     mutate(
@@ -432,12 +505,12 @@ wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
 
 # Medication and class effects
 drug_results <- bind_rows(med_results, class_results)
-#removeWorksheet(wb, "Table2")
+removeWorksheet(wb, "Table2")
 addWorksheet(wb, "Table2")
 writeData(wb, "Table2", drug_results)
 
 # Main results
-#removeWorksheet(wb, "Table3")
+removeWorksheet(wb, "Table3")
 addWorksheet(wb, "Table3")
 writeData(wb, "Table3", results_all)
 

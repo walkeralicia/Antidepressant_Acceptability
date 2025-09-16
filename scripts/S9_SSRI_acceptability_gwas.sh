@@ -63,16 +63,16 @@ library(openxlsx)
 PC_FILE <- "/QRISdata/Q5338/Ancestry_analysis/AGDS_R11_TOPMedr2_pruned.05.common_pca3.proj.eigenvec"
 DEMO_FILE <- "/QRISdata/Q7280/pharmacogenomics/phenotypes/BMI_age_sex.csv"
 TREATMENT_FILE <- "/QRISdata/Q7280/pharmacogenomics/treatment_groups/Final_Treatmentgroups_360days.csv"
-PRESCRIPTION_FILE <- "/QRISdata/Q7280/pharmacogenomics/data/AGDSAcceptabilityTreatmentGroups_14122024.csv"
+PRESCRIPTION_FILE <- "/QRISdata/Q7280/pharmacogenomics/data/AGDSAcceptabilityTreatmentGroups_25082025.csv"
 PHENO_FILE <- "/QRISdata/Q7280/pharmacogenomics/phenotypes/survey_phenotypes.csv"
 OUTPUT_DIR <- "/scratch/user/uqawal15"
 
 # Drug Reference Table
 source("/QRISdata/Q7280/pharmacogenomics/Drug_Reference/Drug_Reference_Table.R")
 ssris <- drug_ref %>%
-filter(DrugClass == "AIIa")
+filter(DrugClass == "SSRI")
 snris <- drug_ref %>%
-filter(DrugClass == "AIIb")
+filter(DrugClass == "SNRI")
 
 # Load and format principal components
 pcs <- read.table(PC_FILE) %>%
@@ -99,7 +99,7 @@ drugs <- read.csv(PRESCRIPTION_FILE) %>%
 
 # Identify participants not in SSRI, BIP-L, or BIP+L groups (i.e., controls, n = 5205)
 controls <- groups %>% 
-  filter(!(DrugClass %in% c("AIIa") | DrugName %in% c("BIP-L", "BIP+L")))
+  filter(!(DrugClass %in% c("SSRI") | DrugName %in% c("BIP-L", "BIP+L")))
 
 # Filter prescription data to include only those from controls
 drugs_controls <- drugs %>% 
@@ -119,7 +119,7 @@ controls_cleaned <- controls %>%
 # 1 = SSRI responder, 0 = non-responder, NA = not applicable
 groups$SSRI_Acceptability <- ifelse(
   groups$ParticipantID %in% controls_cleaned$ParticipantID, 0,
-  ifelse(groups$DrugClass == "AIIa", 1, NA)
+  ifelse(groups$DrugClass == "SSRI", 1, NA)
 )
 
 
@@ -127,7 +127,7 @@ groups$SSRI_Acceptability <- ifelse(
 
 # Identify participants not in SSRI, SNRI, BIP-L, or BIP+L groups (i.e., controls)
 controls <- groups %>% 
-  filter(!(DrugClass %in% c("AIIa", "AIIb") | DrugName %in% c("BIP-L", "BIP+L")))
+  filter(!(DrugClass %in% c("SSRI", "SNRI") | DrugName %in% c("BIP-L", "BIP+L")))
 
 # Filter prescriptions data to include only those from the controls
 drugs_controls <- drugs %>% 
@@ -147,7 +147,7 @@ controls_cleaned <- drugs_controls %>%
 # 1 = SSRI+SNRI responder, 0 = non-responder, NA = not applicable
 groups$SSRI_SNRI_Acceptability <- ifelse(
   groups$ParticipantID %in% controls_cleaned$ParticipantID, 0,
-  ifelse(groups$DrugClass %in% c("AIIa", "AIIb"), 1, NA)
+  ifelse(groups$DrugClass %in% c("SSRI", "SNRI"), 1, NA)
 )
 
 # ONLY IN AGDS (self-reported efficacy)
@@ -188,7 +188,7 @@ dat_eur <- dat %>%
   filter(IID %in% eur$V2)
   
 #-- For those that are unrelated # 14026
-unrelated <- read.table("/QRISdata/Q7280/pharmacogenomics/keep_individuals.txt", header = FALSE)
+unrelated <- read.table("/QRISdata/Q7280/pharmacogenomics/associations/GWAS/keep_individuals.txt", header = FALSE)
 dat_eur_unrelated <- dat_eur %>%
 filter(IID %in% unrelated$V2)
 
@@ -215,27 +215,24 @@ select(STUDYID, SSRI_Acceptability, AGE, SEX, PC1, PC2, PC3) %>%
 filter(!is.na(AGE) & SEX != "NONE" & !is.na(PC1) & !is.na(PC2) & !is.na(PC3)) %>%
 count(SSRI_Acceptability)
   SSRI_Acceptability    n
-1                  0 4561
-2                  1 3423
-3                 NA 1479
+1                  0 4112
+2                  1 3022
 
 dat_eur_unrelated %>%
 select(STUDYID, SSRI_SNRI_Acceptability, AGE, SEX, PC1, PC2, PC3) %>%
 filter(!is.na(AGE) & SEX != "NONE" & !is.na(PC1) & !is.na(PC2) & !is.na(PC3)) %>%
 count(SSRI_SNRI_Acceptability)
   SSRI_SNRI_Acceptability    n
-1                       0 2270
-2                       1 5554
-3                      NA 1639
+1                       0 2013
+2                       1 4973
 
 dat_eur_unrelated %>%
 select(STUDYID, SSRI_Responder, AGE, SEX, PC1, PC2, PC3) %>%
 filter(!is.na(AGE) & SEX != "NONE" & !is.na(PC1) & !is.na(PC2) & !is.na(PC3)) %>%
 count(SSRI_Responder)
   SSRI_Responder    n
-1              0 2653
-2              1 6474
-3             NA  336
+1              0 2410
+2              1 5862
 
 dat_eur_unrelated %>%
 select(STUDYID, SSRI_SNRI_Responder, AGE, SEX, PC1, PC2, PC3) %>%
@@ -243,9 +240,8 @@ filter(!is.na(AGE) & SEX != "NONE" & !is.na(PC1) & !is.na(PC2) & !is.na(PC3)) %>
 count(SSRI_SNRI_Responder)
 
   SSRI_SNRI_Responder    n
-1                   0  904
-2                   1 8223
-3                  NA  336
+1                   0  806
+2                   1 7466
 
 
 
@@ -254,9 +250,9 @@ count(SSRI_SNRI_Responder)
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --time=24:00:00
-#SBATCH --mem=100G
+#SBATCH --mem=10G
 #SBATCH --job-name=SSRI_Acceptability_gwas
 #SBATCH --partition=general
 #SBATCH --account=a_mcrae
@@ -281,7 +277,7 @@ plink2 \
 --covar-variance-standardize \
 --maf 0.01 \
 --glm hide-covar cols=+a1freq \
---threads 8 \
+--threads 16 \
 --out SSRI_Acceptability_gwas_chr${c}_results
 
 #---------------------------------------------
@@ -292,7 +288,7 @@ plink2 \
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --time=24:00:00
 #SBATCH --mem=100G
 #SBATCH --job-name=SSRI_SNRI_Acceptability_gwas
@@ -319,7 +315,7 @@ plink2 \
 --covar-variance-standardize \
 --maf 0.01 \
 --glm hide-covar cols=+a1freq \
---threads 8 \
+--threads 16 \
 --out SSRI_SNRI_Acceptability_gwas_chr${c}_results
 
 #--------------- Run SSRI self-report efficacy GWAS using PLINK2 (common variants)
@@ -327,7 +323,7 @@ plink2 \
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --time=24:00:00
 #SBATCH --mem=100G
 #SBATCH --job-name=SSRI_Responder_gwas
@@ -354,7 +350,7 @@ plink2 \
 --covar-variance-standardize \
 --maf 0.01 \
 --glm hide-covar cols=+a1freq \
---threads 8 \
+--threads 16 \
 --out SSRI_Responder_gwas_chr${c}_results
 
 #--------------- Run SSRI+SNRI self-report efficacy GWAS using PLINK2 (common variants)
@@ -362,7 +358,7 @@ plink2 \
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --time=24:00:00
 #SBATCH --mem=100G
 #SBATCH --job-name=SSRI_SNRI_Responder_gwas
@@ -389,7 +385,7 @@ plink2 \
 --covar-variance-standardize \
 --maf 0.01 \
 --glm hide-covar cols=+a1freq \
---threads 8 \
+--threads 16 \
 --out SSRI_SNRI_Responder_gwas_chr${c}_results
 
 
@@ -433,7 +429,6 @@ echo "Done! Results saved."
 #---------------------------- SSRI Acceptability ------------------------------------
 
 # load libraries
-library(data.table)
 library(qqman)
 library(dplyr)
 library(openxlsx)
@@ -447,8 +442,10 @@ calculate_lambda <- function(pvals) {
 
 # Path to GWAS results
 input_file <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability/SSRI_Acceptability_GWAS.txt"
-output_dir <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Acceptability"
-gwas <- fread(input_file, fill = TRUE)
+output_dir <- "/scratch/user/uqawal15"
+gwas <- read.table(input_file, fill = TRUE)
+colnames(gwas) <- c("#CHROM", "POS", "ID", "REF", "ALT", "A1", "A1_FREQ", "FIRTH?", "TEST", "OBS_CT", "OR", "LOG(OR)_SE", "Z_STAT", "P", "ERRCODE")
+
               
 gwas_cleaned <- gwas %>%
   mutate(P = as.numeric(P)) %>%
@@ -475,7 +472,7 @@ manhattan(gwas_cleaned,
           highlight = top_snps$ID,
           suggestiveline = -log10(5e-6),
           genomewideline = -log10(5e-8),
-          main = "SSRI Acceptability GWAS")
+          main = "Sustained SSRI Use GWAS")
 dev.off()
 
 # Make the qqplot
@@ -486,7 +483,7 @@ png(file.path(output_dir, "SSRI_Acceptability_GWAS_qqplot.png"),
     height = 1800,
     res = 300)
 
-qq(gwas_cleaned$P, main = "QQ Plot: SSRI Acceptability")
+qq(gwas_cleaned$P, main = "QQ Plot: Sustained SSRI Use")
 dev.off()
 
 
@@ -520,43 +517,35 @@ gwas_temp <- gwas_cleaned %>%
 #-- Save file for LD clumping
 ld_format <- gwas_temp %>%
 select(SNP, CHR, BP = POS, P)
-fwrite(ld_format, file.path(output_dir, "SSRI_Acceptability_GWAS.temp"), sep = "\t")
+write.table(ld_format, file.path(output_dir, "SSRI_Acceptability_GWAS.temp"), sep = "\t", row.names= FALSE, quote = FALSE)
 
 #-- Save COJO format as tab-delimited
 cojo_format <- gwas_temp %>%
 select(-CHR, -POS,-REF, -ALT, -OR, -Z_STAT)
-fwrite(cojo_format, file.path(output_dir, "SSRI_Acceptability_GWAS.ma"), sep = "\t")
+write.table(cojo_format, file.path(output_dir, "SSRI_Acceptability_GWAS.ma"), sep = "\t", row.names= FALSE, quote = FALSE)
 
 #-- Format results for a Supp Table
 sig <- gwas_temp %>%
-    mutate_at(vars(SE, P, A1_FREQ), ~ signif(., 2)) %>%
-    mutate_at(vars(OR, Z_STAT), ~ round(., 2)) %>%
-    select(CHR, POS, SNP, REF, ALT, A1, A2, A1_FREQ, OR, SE, Z_STAT, P, N) %>%
     filter(P < 0.000005) %>%
-    arrange(P)
-    
-#-- Format results for sharing
-gwas_final <- gwas_temp %>%
-    mutate_at(vars(SE, P, A1_FREQ), ~ signif(., 4)) %>%
-    mutate_at(vars(OR, Z_STAT), ~ round(., 4)) %>%
+    mutate(across(P, ~ format(signif(.x, 2), scientific = TRUE))) %>%
+    mutate(across(c(SE, A1_FREQ), ~ signif(., 2))) %>%
+    mutate(across(c(OR, Z_STAT), ~ round(., 2))) %>%
     select(CHR, POS, SNP, REF, ALT, A1, A2, A1_FREQ, OR, SE, Z_STAT, P, N) %>%
-    arrange(P) 
-fwrite(gwas_final, file.path(output_dir, "SSRI_Acceptability_GWAS.txt"), sep = "\t")
+    arrange(CHR, POS)
 
     
 wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
-#removeWorksheet(wb, "Table19")
-addWorksheet(wb, "Table19")
-writeData(wb, "Table19", sig)
+removeWorksheet(wb, "Table18")
+addWorksheet(wb, "Table18")
+writeData(wb, "Table18", sig)
 saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
 
 # Lambda
-lambda <- calculate_lambda(gwas_cleaned$P) # 0.9992045
+lambda <- calculate_lambda(gwas_cleaned$P) # 1.002041
 
 #---------------------------- SSRI+SNRI Acceptability ------------------------------------
 
 # load libraries
-library(data.table)
 library(qqman)
 library(dplyr)
 library(openxlsx)
@@ -570,8 +559,10 @@ calculate_lambda <- function(pvals) {
 
 # Path to GWAS results
 input_file <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability/SSRI_SNRI_Acceptability_GWAS.txt"
-output_dir <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_SNRI_Acceptability"
-gwas <- fread(input_file, fill = TRUE)
+output_dir <- "/scratch/user/uqawal15"
+gwas <- read.table(input_file, fill = TRUE)
+colnames(gwas) <- c("#CHROM", "POS", "ID", "REF", "ALT", "A1", "A1_FREQ", "FIRTH?", "TEST", "OBS_CT", "OR", "LOG(OR)_SE", "Z_STAT", "P", "ERRCODE")
+
 gwas_cleaned <- gwas %>%
   mutate(P = as.numeric(P)) %>%
   filter(!is.na(P)) %>%
@@ -597,7 +588,7 @@ manhattan(gwas_cleaned,
           highlight = top_snps$ID,
           suggestiveline = -log10(5e-6),
           genomewideline = -log10(5e-8),
-          main = "SSRI/SNRI Acceptability GWAS")
+          main = "Sustained SSRI/SNRI Use GWAS")
 dev.off()
 
 # Make the qqplot
@@ -608,7 +599,7 @@ png(file.path(output_dir, "SSRI_SNRI_Acceptability_GWAS_qqplot.png"),
     height = 1800,
     res = 300)
 
-qq(gwas_cleaned$P, main = "QQ Plot: SSRI/SNRI Acceptability")
+qq(gwas_cleaned$P, main = "QQ Plot: Sustained SSRI/SNRI Use")
 dev.off()
 
 #-- Convert to COJO format
@@ -641,29 +632,30 @@ cojo_temp <- gwas_cleaned %>%
 #-- Save file for LD clumping
 ld_format <- cojo_temp %>%
 select(SNP, CHR, BP = POS, P)
-fwrite(ld_format, file.path(output_dir, "SSRI_SNRI_Acceptability.temp"), sep = "\t")
+write.table(ld_format, file.path(output_dir, "SSRI_SNRI_Acceptability.temp"), sep = "\t", row.names= FALSE, quote = FALSE)
 
 #-- Save COJO format as tab-delimited
 cojo_format <- cojo_temp %>%
 select(-CHR, -POS,-REF, -ALT, -OR, -Z_STAT)
-fwrite(cojo_format, file.path(output_dir, "SSRI_SNRI_Acceptability_GWAS.ma"), sep = "\t")
+write.table(cojo_format, file.path(output_dir, "SSRI_SNRI_Acceptability_GWAS.ma"), sep = "\t", row.names= FALSE, quote = FALSE)
 
 #-- Format results for a Supp Table
 sig <- cojo_temp %>%
-    mutate_at(vars(SE, P, A1_FREQ), ~ signif(., 2)) %>%
-    mutate_at(vars(OR, Z_STAT), ~ round(., 2)) %>%
-    select(CHR, POS, SNP, REF, ALT, A1, A2, A1_FREQ, OR, SE, Z_STAT, P, N) %>%
     filter(P < 0.000005) %>%
-    arrange(P)
+    mutate(across(P, ~ format(signif(.x, 2), scientific = TRUE))) %>%
+    mutate(across(c(SE, A1_FREQ), ~ signif(., 2))) %>%
+    mutate(across(c(OR, Z_STAT), ~ round(., 2))) %>%
+    select(CHR, POS, SNP, REF, ALT, A1, A2, A1_FREQ, OR, SE, Z_STAT, P, N) %>%
+    arrange(CHR, POS)
     
 wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
-#removeWorksheet(wb, "Table18")
-addWorksheet(wb, "Table18")
-writeData(wb, "Table18", sig)
+removeWorksheet(wb, "Table19")
+addWorksheet(wb, "Table19")
+writeData(wb, "Table19", sig)
 saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
 
 # Lambda
-lambda <- calculate_lambda(gwas_cleaned$P) # 0.9974256
+lambda <- calculate_lambda(gwas_cleaned$P) # 1.000976
 
 
 #---------------------------- SSRI self-report efficacy ------------------------------------
@@ -682,8 +674,8 @@ calculate_lambda <- function(pvals) {
 }
 
 # Path to GWAS results
-input_file <- "/scratch/user/uqawal15/SSRI_Responder_GWAS.txt"
-output_dir <- "/scratch/user/uqawal15"
+input_file <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder/SSRI_Responder_GWAS.txt"
+output_dir <- "/QRISdata/Q7280/pharmacogenomics/associations/GWAS/SSRI_Responder"
 gwas <- fread(input_file, fill = TRUE)
               
 gwas_cleaned <- gwas %>%
@@ -762,21 +754,22 @@ fwrite(cojo_format, file.path(output_dir, "SSRI_Responder_GWAS.ma"), sep = "\t")
 
 #-- Format results for a Supp Table
 sig <- cojo_temp %>%
-    mutate_at(vars(SE, P, A1_FREQ), ~ signif(., 2)) %>%
-    mutate_at(vars(OR, Z_STAT), ~ round(., 2)) %>%
-    select(CHR, POS, SNP, REF, ALT, A1, A2, A1_FREQ, OR, SE, Z_STAT, P, N) %>%
     filter(P < 0.000005) %>%
-    arrange(P)
+    mutate(across(P, ~ format(signif(.x, 2), scientific = TRUE))) %>%
+    mutate(across(c(SE, A1_FREQ), ~ signif(., 2))) %>%
+    mutate(across(c(OR, Z_STAT), ~ round(., 2))) %>%
+    select(CHR, POS, SNP, REF, ALT, A1, A2, A1_FREQ, OR, SE, Z_STAT, P, N) %>%
+    arrange(CHR, POS)
 
   
 wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
-#removeWorksheet(wb, "Table21")
-addWorksheet(wb, "Table21")
-writeData(wb, "Table21", sig)
+removeWorksheet(wb, "Table20")
+addWorksheet(wb, "Table20")
+writeData(wb, "Table20", sig)
 saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
 
 # Lambda
-lambda <- calculate_lambda(gwas_cleaned$P) # 1.004621
+lambda <- calculate_lambda(gwas_cleaned$P) # 1.001592
 
 #---------------------------- SSRI+SNRI self-report efficacy ------------------------------------
 
@@ -874,20 +867,21 @@ fwrite(cojo_format, file.path(output_dir, "SSRI_SNRI_Responder_GWAS.ma"), sep = 
 
 #-- Format results for a Supp Table
 sig <- cojo_temp %>%
-    mutate_at(vars(SE, P, A1_FREQ), ~ signif(., 2)) %>%
-    mutate_at(vars(OR, Z_STAT), ~ round(., 2)) %>%
-    select(CHR, POS, SNP, REF, ALT, A1, A2, A1_FREQ, OR, SE, Z_STAT, P, N) %>%
     filter(P < 0.000005) %>%
-    arrange(P)
+    mutate(across(P, ~ format(signif(.x, 2), scientific = TRUE))) %>%
+    mutate(across(c(SE, A1_FREQ), ~ signif(., 2))) %>%
+    mutate(across(c(OR, Z_STAT), ~ round(., 2))) %>%
+    select(CHR, POS, SNP, REF, ALT, A1, A2, A1_FREQ, OR, SE, Z_STAT, P, N) %>%
+    arrange(CHR, POS)
     
 wb <- loadWorkbook("/scratch/user/uqawal15/All_Results.xlsx")
-#removeWorksheet(wb, "Table20")
-addWorksheet(wb, "Table20")
-writeData(wb, "Table20", sig)
+removeWorksheet(wb, "Table21")
+addWorksheet(wb, "Table21")
+writeData(wb, "Table21", sig)
 saveWorkbook(wb, file.path("/scratch/user/uqawal15", "All_Results.xlsx"), overwrite = TRUE)
 
 # Lambda
-lambda <- calculate_lambda(gwas_cleaned$P) # 0.9992558
+lambda <- calculate_lambda(gwas_cleaned$P) # 0.9993303
 
 
 ############ PLINK LD CLUMPING ################################

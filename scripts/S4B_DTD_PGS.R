@@ -1,17 +1,28 @@
 # -- Load packages
-library(tidyverse)
-library(emmeans)
+library(dplyr)
+library(purrr)
+library(stringr)
 library(openxlsx)
+library(progressr)
+library(emmeans)
 library(broom)
 
 # -- Set working directory
 wkdir <- "/QRISdata/Q7280/pharmacogenomics"
 output_dir <- "/scratch/user/uqawal15"
 
-# -- Load treatment group data and extract AGE and SNPSEX information
-dat <- read_csv(file.path(wkdir, "data/AGDSAcceptabilityTreatmentGroups_14122024.csv"))
-pheno <- read_csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv")) %>%
-  select(STUDYID, AGE, SEX, BMI, DXBPD2) %>% 
+# -- Load treatment group data and extract AGE, SNPSEX and PC information
+pcs <- read.table("/QRISdata/Q5338/Ancestry_analysis/AGDS_R11_TOPMedr2_pruned.05.common_pca3.proj.eigenvec") %>%
+  select(-V1) %>%
+  rename(
+    IID = V2, 
+    PC1 = V3,
+    PC2 = V4, 
+    PC3 = V5
+  )
+dat <- read.csv(file.path(wkdir, "data/AGDSAcceptabilityTreatmentGroups_25082025.csv"))
+pheno <- read.csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv")) %>%
+  select(STUDYID, AGE, SEX, BMI, DXBPD2, MDD) %>% 
   rename(ParticipantID = STUDYID)
 
 # -- Drug mapping as tibble
@@ -29,20 +40,20 @@ pharma <- ad_mapped %>%
   summarize(
     num_ATC = n_distinct(ATCCode),
     num_class = n_distinct(DrugClass),
-    Total_TEs = sum(NumberOfTreatmentPeriods, na.rm = TRUE),
+    Total_TEs = sum(NumberOfPrescriptionEpisodes, na.rm = TRUE),
     TotalPrescriptionDays = sum(PrescriptionDays, na.rm = TRUE)
   )
 
 # -- Genetic data setup
 pgslist <- system('find /QRISdata/Q7280/pharmacogenomics/pgs -name "*agds_sbrc_gctb_plink2.sscore" -type f -exec ls {} \\;', intern = TRUE)
-pgs_codes <- c("PUD_01", "T2D_03", "CNT_03", "ADHD_01", "BIP_LOO", "BMI_LOO", "MDD_LOO", "SCZ_02", "SCZ_03", "Migraine_01", "SBP_01",  "ANO_LOO", "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "Neuroticism_01", "LRA_01")
+pgs_codes <- c("PUD_01", "T2D_03", "CNT_03", "ADHD_01", "BIP_LOO", "BMI_LOO", "MDD_LOO", "SCZ_03", "Migraine_01", "SBP_01",  "ANO_LOO", "UKB_35BM_2021_LDL_direct_adjstatins", "CRP_01", "Neuroticism_01", "LRA_01")
 selected_pgs <- pgslist[grep(paste(pgs_codes, collapse = "|"), pgslist)]
 
 # -- List of Europeans
-eur <- read_table("/QRISdata/Q5338/Ancestry_analysis/PCA/AGDS_EUR.id", col_names = FALSE)
+eur <- read.table("/QRISdata/Q5338/Ancestry_analysis/PCA/AGDS_EUR.id")
 
 # -- Linkage file for those with genetic data
-link <- read_table(file.path("/QRISdata/Q7280/pharmacogenomics", "data/StudyID_GenoID_link.txt")) %>%
+link <- read.table(file.path("/QRISdata/Q7280/pharmacogenomics", "data/StudyID_GenoID_link.txt"), header = TRUE) %>%
   rename("ParticipantID" = "StudyCodeID") %>%
   distinct()
 
@@ -50,18 +61,21 @@ link <- read_table(file.path("/QRISdata/Q7280/pharmacogenomics", "data/StudyID_G
 
 run_pgs_analysis <- function(exclude_bip = FALSE) {
   
-  # Create dataset based on BIP exclusion
+  # Start with the base dataset
+  pharma_full <- pharma %>%
+    left_join(pheno, by = "ParticipantID") %>%
+    filter(MDD==1)
+  
+  # Apply filters based on parameters
   if (exclude_bip) {
-    pharma_full <- pharma %>%
-      left_join(pheno, by = "ParticipantID") %>%
+    pharma_full <- pharma_full %>%
       filter(DXBPD2 != 1) %>%
       select(-DXBPD2)
     analysis_label <- "BIP_Excluded"
   } else {
-    pharma_full <- pharma %>%
-      left_join(pheno, by = "ParticipantID") %>%
+    pharma_full <- pharma_full %>%
       select(-DXBPD2)
-    analysis_label <- "BIP_Included"
+    analysis_label <- "Full_Sample"
   }
   
   # -- Convert SEX
@@ -82,7 +96,7 @@ run_pgs_analysis <- function(exclude_bip = FALSE) {
     
     # -- Read in PGS file for the selected trait
     pgs_file_path <- selected_pgs[j]
-    pgs <- read_table(selected_pgs[j], col_names = TRUE)
+    pgs <- read.table(selected_pgs[j], header = FALSE)
     
     # -- Extract PGS trait name
     pgs_filename <- basename(pgs_file_path)
@@ -91,21 +105,24 @@ run_pgs_analysis <- function(exclude_bip = FALSE) {
     cat(trait, j, analysis_label, '\n')
     
     # -- Filter PGS for Europeans
-    ids_to_keep <- as.character(eur$X2)
+    ids_to_keep <- as.character(eur$V2)
     pgs_e <- pgs %>% 
-      filter(IID %in% ids_to_keep)
+      filter(V2 %in% ids_to_keep)
     
     # -- Standardize PGS
     pgs_e <- pgs_e %>%
-      mutate(SCORE1_SUM = as.numeric(SCORE1_SUM),
-             std_pgs = scale(SCORE1_SUM)[,1])
+      mutate(SCORE1_SUM = as.numeric(V6),
+             std_pgs = scale(V6)[,1])
     
     # -- Join PGS file with ad treatment group data
     pharma_link <- inner_join(link, pharma_full, by = "ParticipantID")
-    pgs_atc <- inner_join(pharma_link, pgs_e, by = c("IID" = "IID"))
+    pgs_atc <- inner_join(pharma_link, pgs_e, by = c("IID" = "V2"))
+    
+    #-- Join with PCs
+    pgs_atc <- left_join(pgs_atc, pcs, by = "IID")
     
     #======= Analysis 1: Total Prescription Days
-    total_lm <- lm(TotalPrescriptionDays ~ AGE + SEX + std_pgs, data = pgs_atc) 
+    total_lm <- lm(TotalPrescriptionDays ~ AGE + SEX + PC1 + PC2 + PC3 + std_pgs, data = pgs_atc) 
     lm_summary <- tidy(total_lm) %>% rename(Term = term)
     
     lm_dat <- tibble(
@@ -118,7 +135,7 @@ run_pgs_analysis <- function(exclude_bip = FALSE) {
     total_lm_list[[length(total_lm_list) + 1]] <- lm_dat
     
     #====== Analysis 2: Number of unique Antidepressants
-    numAD_lm <- lm(num_ATC ~ AGE + SEX + std_pgs, data = pgs_atc) 
+    numAD_lm <- lm(num_ATC ~ AGE + SEX + PC1 + PC2 + PC3 + std_pgs, data = pgs_atc) 
     lm_summary <- tidy(numAD_lm) %>% rename(Term = term)
     
     lm_dat <- tibble(
@@ -131,7 +148,7 @@ run_pgs_analysis <- function(exclude_bip = FALSE) {
     numAD_lm_list[[length(numAD_lm_list) + 1]] <- lm_dat
     
     #====== Analysis 3: Number of unique Antidepressant Classes
-    numClass_lm <- lm(num_class ~ AGE + SEX + std_pgs, data = pgs_atc) 
+    numClass_lm <- lm(num_class ~ AGE + SEX + PC1 + PC2 + PC3 + std_pgs, data = pgs_atc) 
     lm_summary <- tidy(numClass_lm) %>% rename(Term = term)
     
     lm_dat <- tibble(
@@ -153,7 +170,7 @@ run_pgs_analysis <- function(exclude_bip = FALSE) {
 
 #=========== RUN BOTH ANALYSES =================================================================
 
-# Run analysis with BIP included
+# Run analysis with BIP included (full sample)
 cat("Running analysis with BIP included...\n")
 results_bip_included <- run_pgs_analysis(exclude_bip = FALSE)
 
@@ -196,7 +213,7 @@ pgs_rename_mapping <- c(
   "Neuroticism_01" = "Neuroticism",
   "PUD_01" = "Peptic Ulcer Disease",
   "SBP_01" = "Systolic Blood Pressure",
-  "SCZ_02" = "Schizophrenia",
+  "SCZ_03" = "Schizophrenia",
   "T2D_03" = "T2D",
   "UKB_35BM" = "LDL-c", 
   "LRA_01" = "LRA"
@@ -235,7 +252,7 @@ results_final <- results_final %>%
 
 # Save to Excel
 wb <- loadWorkbook(file.path("/scratch/user/uqawal15", "All_Results.xlsx"))
-#removeWorksheet(wb, "Table4")
+removeWorksheet(wb, "Table4")
 addWorksheet(wb, "Table4")
 writeData(wb, "Table4", results_final)
 saveWorkbook(wb, file.path(output_dir, "All_Results.xlsx"), overwrite = TRUE)
