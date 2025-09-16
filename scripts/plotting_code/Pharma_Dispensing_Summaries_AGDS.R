@@ -69,14 +69,15 @@ setup_grouping <- function(group_var = "DrugName") {
 #-- Function to load data
 load_data <- function() {
   # Load treatment files
-  ad <- fread(file.path(wkdir, "data/AGDSAcceptabilityTreatmentGroups_14122024.csv")) %>%
+  ad <- fread(file.path(wkdir, "data/AGDSAcceptabilityTreatmentGroups_25082025.csv")) %>%
     mutate(
       EarliestPrescription = as.Date(EarliestPrescription, format = "%d/%m/%Y"),
       LatestPrescription = as.Date(LatestPrescription, format = "%d/%m/%Y")
     )
   
   #-- Load phenotype data
-  pheno <- read.csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv"))
+  pheno <- read.csv(file.path(wkdir, "phenotypes/survey_phenotypes.csv")) %>%
+    filter(MDD==1)
   
   #-- Participants with phenotype and pharma data
   ad <- ad %>% filter(ParticipantID %in% pheno$STUDYID)
@@ -379,7 +380,7 @@ create_repeat_prescription_plot <- function(data, config) {
       group_by(!!sym(group_var)) %>%
       summarise(
         Total = n(),
-        GreaterThanOne = sum(NumberOfTreatmentPeriods > 1),
+        GreaterThanOne = sum(NumberOfPrescriptionEpisodes > 1),
         .groups = "drop"
       ) %>%
       mutate(Proportion = GreaterThanOne / Total, 
@@ -482,24 +483,24 @@ create_plot7 <- function(data, config) {
   # Group participants by treatment periods
   ad_mapped_restricted <- data %>%
     filter(PrescriptionDays < 800) %>%
-    mutate(NumberOfTreatmentPeriods_grouped = 
-             ifelse(NumberOfTreatmentPeriods > 4, "5+", as.character(NumberOfTreatmentPeriods))) %>%
-    mutate(NumberOfTreatmentPeriods_grouped = 
-             factor(NumberOfTreatmentPeriods_grouped, 
+    mutate(NumberOfPrescriptionEpisodes_grouped = 
+             ifelse(NumberOfPrescriptionEpisodes > 4, "5+", as.character(NumberOfPrescriptionEpisodes))) %>%
+    mutate(NumberOfPrescriptionEpisodes_grouped = 
+             factor(NumberOfPrescriptionEpisodes_grouped, 
                     levels = c("1", "2", "3", "4", "5+"), ordered = TRUE))
   
   if (group_var == "DrugName") {
     # For DrugName, use faceted plot with error bars
     summary_data <- ad_mapped_restricted %>%
-      group_by(!!sym(group_var), NumberOfTreatmentPeriods_grouped) %>%
+      group_by(!!sym(group_var), NumberOfPrescriptionEpisodes_grouped) %>%
       summarise(
         Median_Duration = median(PrescriptionDays, na.rm = TRUE),
         IQR = IQR(PrescriptionDays, na.rm = TRUE)
       ) %>%
-      arrange(!!sym(group_var), NumberOfTreatmentPeriods_grouped)
+      arrange(!!sym(group_var), NumberOfPrescriptionEpisodes_grouped)
     
     plot7 <- ggplot(summary_data, 
-                    aes(x = Median_Duration, y = NumberOfTreatmentPeriods_grouped, 
+                    aes(x = Median_Duration, y = NumberOfPrescriptionEpisodes_grouped, 
                         group = !!sym(group_var), color = !!sym(group_var))) +
       geom_line(orientation = "y", linewidth = 1) +
       geom_point(size = 3) +
@@ -526,11 +527,11 @@ create_plot7 <- function(data, config) {
   } else {
     # For DrugClass, create a stacked bar plot
     summary_data <- ad_mapped_restricted %>%
-      group_by(DrugClass, NumberOfTreatmentPeriods_grouped) %>%
+      group_by(DrugClass, NumberOfPrescriptionEpisodes_grouped) %>%
       summarise(Count = n(), .groups = "drop")
     
     plot7 <- ggplot(summary_data, 
-                    aes(x = DrugClass, y = Count, fill = NumberOfTreatmentPeriods_grouped)) +
+                    aes(x = DrugClass, y = Count, fill = NumberOfPrescriptionEpisodes_grouped)) +
       geom_bar(stat = "identity", position = "stack") +
       scale_fill_viridis(discrete = TRUE, option = "D") +
       labs(
@@ -583,17 +584,25 @@ create_effects_plot <- function(config, effect_type = "medication") {
   }
   
   # Read and process data
-  effects_data <- read.csv(file.path("/QRISdata/Q7280/pharmacogenomics/pharma_summaries", effects_file)) %>%
+  effects_data <- fread(file.path("/QRISdata/Q7280/pharmacogenomics/pharma_summaries", effects_file), fill = TRUE) %>%
     mutate(Dependent = "PrescriptionDays") %>%
-    fill(Dependent, Total_N, .direction = "down")
+    fill(Dependent, Total_N, .direction = "down") %>%
+    # Convert numeric columns to proper numeric format
+    mutate(
+      Estimate = as.numeric(Estimate),
+      `Std. Error` = as.numeric(`Std. Error`),
+      `t value` = as.numeric(`t value`),
+      #`Pr(>|t|)` = as.numeric(`Pr(>|t|)`),
+      Total_N = as.numeric(Total_N)
+    )
   
   # Filter and calculate significance
   processed_data <- effects_data %>%
     filter(Term %in% filter_values) %>%
   mutate(
-    Neglog10Pvalue = -log10(`Pr...t..`),
-    BF_Sig = ifelse(`Pr...t..` < 0.05, "Significant", "Insignificant"),
-    BF_Sig = ifelse(Term == reference_value, "Reference", BF_Sig),
+    #Neglog10Pvalue = -log10(`Pr(>|t|)`),
+    #BF_Sig = ifelse(`Pr(>|t|)` < 0.05, "Significant", "Insignificant"),
+    BF_Sig = ifelse(Term == reference_value, "Reference", "Non_reference"),
     Term = factor(Term, levels = factor_levels)
   )
 
@@ -601,7 +610,7 @@ create_effects_plot <- function(config, effect_type = "medication") {
   effects_plot <- ggplot(processed_data, aes(y = Term, x = Estimate, color = BF_Sig)) +
   geom_point(position = position_dodge(width = 0.8), size = 3) +  
   geom_errorbar(
-    aes(xmin = Estimate - (1.96 * `Std..Error`), xmax = Estimate + (1.96 * `Std..Error`)), 
+    aes(xmin = Estimate - (1.96 * `Std. Error`), xmax = Estimate + (1.96 * `Std. Error`)), 
     position = position_dodge(width = 0.8), 
     linewidth = 1, width = 0.3
   ) +
@@ -621,8 +630,8 @@ create_effects_plot <- function(config, effect_type = "medication") {
   xlim(x_limits) +
   scale_color_manual(
     values = c(
-      "Significant" = "#0047AB",
-      "Insignificant" = "#7F7F7F",
+      "Non_reference" = "#0047AB",
+      #"Insignificant" = "#7F7F7F",
       "Reference" = "black"
     ),
     name = "Significance Level", na.translate = FALSE

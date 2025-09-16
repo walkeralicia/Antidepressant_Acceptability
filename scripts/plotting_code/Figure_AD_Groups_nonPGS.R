@@ -10,22 +10,25 @@ custom_colors <- c("360 days" = "#4169E1",
 #====================== Pharmaceutical Plot =========================================
 
 #-- Read in results in which the dependent variable is quantitative
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table11") %>%
-  fill(threshold, reference_term, outcome, total_n, .direction = "down")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table10Unified") %>%
+  fill(adherence, threshold, reference_term, outcome, total_n, .direction = "down")
 
 dat <- dat %>% filter(term != "AGE" & term != "SEX" & reference_term == "SSRI:Sertraline" & term != "SSRI:Sertraline",
-                        outcome %in% c("Average Prescription Episode Length", "Number of Prescription Episodes",
-                                       "Total Prescription Dispense", "Number of Unique Antidepressants", "Number of Unique AD Class"))
+                        outcome %in% c("Average Prescription Episode Length", "Number of Prescription Episodes", "Number of Co-occuring Conditions", "General Adherence Score",
+                                       "Cumulative AD Dispense", "AD Diversity", "Class Diversity")) %>%
+  filter(adherence == "All")
 
 #-- Renaming treatment and PGS labels
-dat$term <- factor(dat$term, levels = rev(c("TeCA:Mirtazapine", "TCA:Amitriptyline", "SNRI:Duloxetine", "SNRI:Desvenlafaxine", "SNRI:Venlafaxine", "SSRI:Paroxetine", "SSRI:Fluoxetine", "SSRI:Escitalopram", "SSRI:Citalopram")))
+dat$term <- factor(dat$term, levels = rev(c("Various","Combination", "BIP+L", "BIP-L", "TeCA:Mirtazapine", "TCA:Amitriptyline", "SNRI:Duloxetine", "SNRI:Desvenlafaxine", "SNRI:Venlafaxine", "SSRI:Paroxetine", "SSRI:Fluoxetine", "SSRI:Escitalopram", "SSRI:Citalopram")))
 dat$threshold <- factor(dat$threshold, levels = c("360 days", "600 days"))
 
-variable_order <- c("Total Prescription Dispense",
+variable_order <- c("Cumulative AD Dispense",
                     "Number of Prescription Episodes",
                     "Average Prescription Episode Length",
-                    "Number of Unique Antidepressants",
-                    "Number of Unique AD Class")
+                    "AD Diversity",
+                    "Class Diversity",
+                    "General Adherence Score",
+                    "Number of Co-occuring Conditions")
 dat_factored <- dat %>%
   mutate(outcome = factor(outcome, levels = variable_order))
 
@@ -68,20 +71,21 @@ p <- ggplot(dat_labeled, aes(x = term, y = estimate, group = threshold, colour =
 
 p
 
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\3. NonPGS\\Results\\Figures\\PharmaceuticalMetrics_QuantitativeAssociations.png", 
-       plot = p, device = "png", width = 500, height = 400, units = "mm")
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\PharmaceuticalMetrics_QuantitativeAssociations.png", 
+       plot = p, device = "png", width = 500, height = 600, units = "mm")
 
 
 
 #======================== Quantitative survey phenotypes =================================
 
 #-- Read in results in which the dependent variable is quantitative
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table11") %>%
-  fill(threshold, reference_term, outcome, total_n, .direction = "down")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table10Unified") %>%
+  fill(adherence, threshold, reference_term, outcome, total_n, .direction = "down")
 
 dat <- dat %>% filter(term != "AGE" & term != "SEX" & reference_term == "SSRI:Sertraline" & term != "SSRI:Sertraline",
                       outcome %in% c("Age", "Age of MDD Onset", "Times 2-Weeks of MDD", "BMI", "Education Level",
-                                     "Physical health", "Drinks over 3 Months"))
+                                     "Physical health", "Drinks over 3 Months")) %>%
+  filter(adherence == "All")
 
 #-- Renaming treatment and PGS labels
 dat$term <- factor(dat$term, levels = rev(c( "Various", "Combination", "BIP-L", "BIP+L", "TeCA:Mirtazapine", "TCA:Amitriptyline", "SNRI:Duloxetine", "SNRI:Desvenlafaxine", "SNRI:Venlafaxine", "SSRI:Paroxetine", "SSRI:Fluoxetine", "SSRI:Escitalopram", "SSRI:Citalopram")))
@@ -136,15 +140,18 @@ p <- ggplot(dat_labeled, aes(x = term, y = estimate, group = threshold, colour =
   )
 
 p
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\3. NonPGS\\Results\\Figures\\ClinicalFeatures_QuantitativeAssociations.png", 
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\ClinicalFeatures_QuantitativeAssociations.png", 
        plot = p, device = "png", width = 500, height = 400, units = "mm")
 
+beta_360 = dat_labeled[dat_labeled$threshold == "360 days", "estimate"]
+beta_600 = dat_labeled[dat_labeled$threshold == "600 days", "estimate"]
+cor(beta_360, beta_600)
 
 #=================== Binary Worst MDD Episode Symptoms ===============================
 
 #-- Read in results in which the dependent variable is quantitative
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table9") %>%
-  fill(Threshold, Reference, Dependent, Total_N, .direction = "down")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table12Unified") %>%
+  fill(Adherence, Threshold, Reference, Dependent, Total_N, .direction = "down")
 
 variable_order <- c("Low Interest 2-Weeks",
                     "Depressed 2-Weeks",
@@ -154,10 +161,12 @@ variable_order <- c("Low Interest 2-Weeks",
                     "Death Thoughts",
                     "Appetite/Weight Change",
                     "Sleep Disturbances",
-                    "Movement Changes")
+                    "Movement Changes",
+                    "Atypical Subtype")
 
-dat <- dat %>% filter(Term != "AGE" & Term != "SEX1" & Reference == "SSRI:Sertraline" & Term != "SSRI:Sertraline",
-                      Dependent %in% variable_order)
+dat <- dat %>% filter(Term != "AGE" & Term != "SEX" & Reference == "SSRI:Sertraline" & Term != "SSRI:Sertraline",
+                      Dependent %in% variable_order) %>%
+  filter(Adherence == "All")
 
 #-- Renaming treatment and PGS labels
 dat$Term <- factor(dat$Term, levels = rev(c( "Various", "Combination", "BIP-L", "BIP+L", "TeCA:Mirtazapine", "TCA:Amitriptyline", "SNRI:Duloxetine", "SNRI:Desvenlafaxine", "SNRI:Venlafaxine", "SSRI:Paroxetine", "SSRI:Fluoxetine", "SSRI:Escitalopram", "SSRI:Citalopram")))
@@ -179,7 +188,9 @@ dat_labeled <- dat_factored %>%
     )
   )
 
-
+beta_360 = dat_labeled[dat_labeled$threshold == "360 days", "OR"]
+beta_600 = dat_labeled[dat_labeled$threshold == "600 days", "OR"]
+cor(beta_360, beta_600)
 # Plotting code
 dodge_width <- 0.7
 p <- ggplot(dat_labeled, aes(x = Term, y = OR, group = Threshold, colour = Threshold)) +
@@ -192,9 +203,9 @@ p <- ggplot(dat_labeled, aes(x = Term, y = OR, group = Threshold, colour = Thres
   geom_text(aes(label = Sig_label, 
                 x = Term, 
                 y = UCI + 0.01), 
-            size = 7, color = "black", 
+            size = 5, color = "black", 
             position = position_dodge(width = dodge_width)) +  
-  facet_wrap(~Dependent, nrow = 3, scales = "free_y") +
+  facet_wrap(~Dependent, ncol = 3, scales = "free_y") +
   xlab("Treatment group") +
   ylab("Odds Ratio (95% CI) with SSRI:Sertraline as Reference") +
   scale_color_manual(values = custom_colors) +
@@ -209,25 +220,28 @@ p <- ggplot(dat_labeled, aes(x = Term, y = OR, group = Threshold, colour = Thres
   )
 
 p
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\3. NonPGS\\Results\\Figures\\MDDSymptoms_BinaryAssociations.png", 
-       plot = p, device = "png", width = 200, height = 200, units = "mm", dpi = 600)
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\MDDSymptoms_BinaryAssociations.png", 
+       plot = p, device = "png", width = 200, height = 250, units = "mm", dpi = 600)
 
 
 ############################### Clinical Binary Survey Phenotypes ############################################
 
 #-- Read in results in which the dependent variable is quantitative
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table9") %>%
-  fill(Threshold, Reference, Dependent, Total_N, .direction = "down")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table12Unified") %>%
+  fill(Adherence, Threshold, Reference, Dependent, Total_N, .direction = "down")
 
 
 variable_order <- c("Sex",
                     "Self-report Responders",
                     "Self-report Discontinuation", 
                     "Suicidal Ideation",
-                    "Regular Smoker")
+                    "Regular Smoker",
+                    "Likely Pregnant",
+                    "Circadian Subtype")
 
-dat <- dat %>% filter(Term != "AGE" & Term != "SEX1" & Reference == "SSRI:Sertraline" & Term != "SSRI:Sertraline",
-                      Dependent %in% variable_order)
+dat <- dat %>% filter(Term != "AGE" & Term != "SEX" & Reference == "SSRI:Sertraline" & Term != "SSRI:Sertraline",
+                      Dependent %in% variable_order) %>%
+  filter(Adherence == "All")
 
 #-- Renaming treatment and PGS labels
 dat$Term <- factor(dat$Term, levels = rev(c( "Various", "Combination", "BIP-L", "BIP+L", "TeCA:Mirtazapine", "TCA:Amitriptyline", "SNRI:Duloxetine", "SNRI:Desvenlafaxine", "SNRI:Venlafaxine", "SSRI:Paroxetine", "SSRI:Fluoxetine", "SSRI:Escitalopram", "SSRI:Citalopram")))
@@ -249,7 +263,9 @@ dat_labeled <- dat_factored %>%
     )
   )
 
-
+beta_360 = dat_labeled[dat_labeled$Threshold == "360 days", "OR"]
+beta_600 = dat_labeled[dat_labeled$Threshold == "600 days", "OR"]
+cor(beta_360, beta_600)
 # Plotting code
 dodge_width <- 0.7
 p <- ggplot(dat_labeled, aes(x = Term, y = OR, group = Threshold, colour = Threshold)) +
@@ -263,7 +279,7 @@ p <- ggplot(dat_labeled, aes(x = Term, y = OR, group = Threshold, colour = Thres
                 y = UCI + 0.01), 
             size = 10, color = "black", 
             position = position_dodge(width = dodge_width)) +  
-  facet_wrap(~Dependent, nrow = 2, scales = "free_y") +
+  facet_wrap(~Dependent, nrow = 3, scales = "free_y") +
   xlab("Treatment group") +
   ylab("Odds Ratio (95% CI) with Sertraline as Reference") +
   theme_bw(base_size = 27) +
@@ -278,14 +294,14 @@ p <- ggplot(dat_labeled, aes(x = Term, y = OR, group = Threshold, colour = Thres
   )
 
 
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\3. NonPGS\\Results\\Figures\\ClinicalFeatures_BinaryAssociations.png", 
-       plot = p, device = "png", width = 500, height = 400, units = "mm")
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\ClinicalFeatures_BinaryAssociations.png", 
+       plot = p, device = "png", width = 500, height = 600, units = "mm")
 
 #================= Binary Comorbidities ================================================
 
 #-- Read in results in which the dependent variable is quantitative
-dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table9") %>%
-  fill(Threshold, Reference, Dependent, Total_N, .direction = "down")
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table12Unified") %>%
+  fill(Adherence, Threshold, Reference, Dependent, Total_N, .direction = "down")
 
 
 variable_order <- c("Type 2 Diabetes", 
@@ -309,8 +325,9 @@ variable_order <- c("Type 2 Diabetes",
                     "PCOS",
                     "Fibroids (uterus)")
 
-dat <- dat %>% filter(Term != "AGE" & Term != "SEX1" & Reference == "SSRI:Sertraline" & Term != "SSRI:Sertraline",
-                      Dependent %in% variable_order)
+dat <- dat %>% filter(Term != "AGE" & Term != "SEX" & Reference == "SSRI:Sertraline" & Term != "SSRI:Sertraline",
+                      Dependent %in% variable_order) %>%
+  filter(Adherence == "All")
 
 #-- Renaming treatment and PGS labels
 dat$Term <- factor(dat$Term, levels = rev(c( "Various", "Combination", "BIP-L", "BIP+L", "TeCA:Mirtazapine", "TCA:Amitriptyline", "SNRI:Duloxetine", "SNRI:Desvenlafaxine", "SNRI:Venlafaxine", "SSRI:Paroxetine", "SSRI:Fluoxetine", "SSRI:Escitalopram", "SSRI:Citalopram")))
@@ -331,7 +348,9 @@ dat_labeled <- dat_factored %>%
       TRUE ~ NA
     )
   )
-
+beta_360 = dat_labeled[dat_labeled$Threshold == "360 days", "OR"]
+beta_600 = dat_labeled[dat_labeled$Threshold == "600 days", "OR"]
+cor(beta_360, beta_600)
 
 # Plotting code
 dodge_width <- 0.7
@@ -359,9 +378,81 @@ p <- ggplot(dat_labeled, aes(x = Term, y = OR, group = Threshold, colour = Thres
     legend.position = "top",
     legend.title = element_blank()
   )
+p
+
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\Comorbidities_BinaryAssociations.png", 
+       plot = p, device = "png", width = 500, height = 700, units = "mm")
 
 
-ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\4. Associations\\3. NonPGS\\Results\\Figures\\Comorbidities_BinaryAssociations.png", 
-       plot = p, device = "png", width = 500, height = 650, units = "mm")
+#================= Binary Prescription-derived co-occurring conditions ================================================
 
+#-- Read in results in which the dependent variable is quantitative
+dat <- read_excel("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\All_results.xlsx", sheet = "Table12Unified") %>%
+  fill(Adherence, Threshold, Reference, Dependent, Total_N, .direction = "down")
+
+
+non_self_report <- c("Augmentation", "Number Co-occurring Conditions", "ADHD-related Medications",
+                     "Analgesics-related Medications", "Anxiety-related Medications", "Asthma/COPD-related Medications",
+                     "Cancer-related Medications", "Cardiovascular-related Medications", "Dementia-related Medications",
+                     "Diabetes-related Medications", "Dyslipidemia-related Medications", "Hepatic-related Medications",
+                     "Immunosuppressants", "Siezure-related Medications", "Sleep-related Medications", "Thyroid-related Medications")
+
+dat <- dat %>% filter(Term != "AGE" & Term != "SEX" & Reference == "SSRI:Sertraline" & Term != "SSRI:Sertraline",
+                      Dependent %in% non_self_report) %>%
+  filter(Adherence == "All")
+
+#-- Renaming treatment and PGS labels
+dat$Term <- factor(dat$Term, levels = rev(c( "Various", "Combination", "BIP-L", "BIP+L", "TeCA:Mirtazapine", "TCA:Amitriptyline", "SNRI:Duloxetine", "SNRI:Desvenlafaxine", "SNRI:Venlafaxine", "SSRI:Paroxetine", "SSRI:Fluoxetine", "SSRI:Escitalopram", "SSRI:Citalopram")))
+dat <- dat %>%
+  mutate(Threshold = ifelse(Threshold == 360, "360 days", "600 days")) %>%
+  mutate(Threshold = factor(Threshold, levels = c("360 days", "600 days")))
+
+
+dat_factored <- dat %>%
+  mutate(Dependent = factor(Dependent, levels = non_self_report))
+
+#-- Label for FDR or Bonferroni significance
+dat_labeled <- dat_factored %>%
+  mutate(
+    Sig_label = case_when(
+      Sig_Bonf == "*" ~ "**",
+      Sig_FDR == "*" & is.na(Sig_Bonf) ~ "*",
+      TRUE ~ NA
+    )
+  )
+beta_360 = dat_labeled[dat_labeled$Threshold == "360 days", "OR"]
+beta_600 = dat_labeled[dat_labeled$Threshold == "600 days", "OR"]
+cor(beta_360, beta_600)
+
+
+# Plotting code
+dodge_width <- 0.7
+p <- ggplot(dat_labeled, aes(x = Term, y = OR, group = Threshold, colour = Threshold)) +
+  geom_point(position = position_dodge(width = dodge_width), size = 4) +  
+  geom_errorbar(aes(ymin = LCI, ymax = UCI), 
+                position = position_dodge(width = dodge_width), 
+                linewidth = 1, width = 0) +
+  geom_hline(yintercept = 1) +
+  geom_text(aes(label = Sig_label, 
+                x = Term, 
+                y = UCI + 0.01), 
+            size = 10, color = "black", 
+            position = position_dodge(width = dodge_width)) +  
+  facet_wrap(~Dependent, ncol = 3, scales = "free_y") +
+  xlab("Treatment group") +
+  ylab("Odds Ratio (95% CI) with Sertraline as Reference") +
+  theme_bw(base_size = 27) +
+  scale_color_manual(values = custom_colors) +
+  theme(
+    strip.text = element_text(color = "black"), 
+    strip.background = element_rect(fill = "white"),
+    axis.text.x = element_text(color = "black", angle = 90, vjust = 0.7),
+    axis.text.y = element_text(color = "black"),
+    legend.position = "top",
+    legend.title = element_blank()
+  )
+p
+
+ggsave("C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\PrescriptionConditions_BinaryAssociations.png", 
+       plot = p, device = "png", width = 500, height = 700, units = "mm")
 
