@@ -6,7 +6,7 @@ library(dplyr)
 library(openxlsx)
 
 # Set paths
-output_dir <- "C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability\\"
+output_dir <- "C:\\Users\\walkera\\OneDrive - Nexus365\\Documents\\PhD\\AGDS\\Antidepressant_Acceptability"
 excel_file <- file.path(output_dir, "All_Results.xlsx")
 
 # ===============================================================================

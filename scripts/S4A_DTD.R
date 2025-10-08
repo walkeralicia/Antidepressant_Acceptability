@@ -8,6 +8,15 @@ library(openxlsx)
 library(progressr)
 library(lme4)
 
+# Formatter: if p < 2.2e-16, report as "<2.2e-16"
+p_fmt <- function(x, machine = 2.2e-16) {
+  out <- ifelse(x < machine,
+                paste0("<", formatC(machine, format = "e", digits = 1)),
+                formatC(signif(x, 2), format = "e"))
+  out[is.na(x)] <- NA_character_
+  out
+}
+
 # -- Set working directory
 wkdir <- "/QRISdata/Q7280/pharmacogenomics"
 output_dir <- "/QRISdata/Q7280/pharmacogenomics/pharma_summaries"
@@ -224,7 +233,7 @@ results1 <- results1 %>%
     Total_Controls = if_else(Total_Controls != lag(Total_Controls, default = 0), Total_Controls, NA_integer_)
   ) %>%
   mutate(
-    across(c(`Pr(>|t|)`, FDR_P, Bonf_P), ~ format(signif(.x, 2), scientific = TRUE)),
+    across(c(`Pr(>|t|)`, FDR_P, Bonf_P), p_fmt),
     across(c(`Std. Error`,`t value`), ~ round(.x, 2)),
     across(c(Estimate), ~ round(.x, 1))
   )
@@ -293,7 +302,7 @@ med_results <- med_results %>%
   )
     
 # Save the results
-write.csv(med_results, file.path(output_dir, "LM_PrescriptionDays_MedicationEffects_Escitalopram_Reference.csv"), quote = FALSE, row.names = FALSE)
+#write.csv(med_results, file.path(output_dir, "LM_PrescriptionDays_MedicationEffects_Escitalopram_Reference.csv"), quote = FALSE, row.names = FALSE)
 
 #============ Class-specific effects ==============================================================
 # Set reference level for drug class
@@ -355,7 +364,7 @@ class_results <- class_results %>%
     )
   )
 # Save the results
-write.csv(class_results, file.path(output_dir, "LM_PrescriptionDays_ClassEffects_SSRI_Reference.csv"), quote = FALSE, row.names = FALSE)
+#write.csv(class_results, file.path(output_dir, "LM_PrescriptionDays_ClassEffects_SSRI_Reference.csv"), quote = FALSE, row.names = FALSE)
 
 #============== Analysis 2: Medication Diversity =============================================
 
@@ -409,7 +418,7 @@ run_analysis <- function(data, dependent_var, dependent_label) {
       Total_Controls = if_else(Total_Controls != lag(Total_Controls, default = 0), Total_Controls, NA_integer_)
     ) %>%
     mutate(
-      across(c(`Pr(>|t|)`, FDR_P, Bonf_P), ~ format(signif(.x, 2), scientific = TRUE)),
+      across(c(`Pr(>|t|)`, FDR_P, Bonf_P), p_fmt),
       across(c(`Std. Error`, Estimate), ~ round(.x, 4)),
       across(c(`t value`), ~ round(.x, 2))
     )
