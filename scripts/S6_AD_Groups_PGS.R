@@ -41,6 +41,7 @@ read_pgs_file <- function(file_path, j) {
   pgs_filename <- basename(file_path)
   trait_parts <- str_split(str_split(pgs_filename, "\\.")[[1]][1], "_")[[1]]
   trait <- paste0(trait_parts[1], "_", trait_parts[2])
+  print(trait)
   
   # Filter for Europeans and standardize
   pgs_filtered <- pgs %>%

@@ -67,6 +67,10 @@ pharma_full <- ad_mapped %>%
   left_join(pharma, by = "ParticipantID") %>%
   filter(MDD==1)
 
+#== Get simple demographics
+t <- pharma_full %>% group_by(ParticipantID) %>% sample_n(1)
+
+
 # -- Create recurrent depression variables
 pharma_full <- pharma_full %>%
   mutate(
